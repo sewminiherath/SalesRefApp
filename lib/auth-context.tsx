@@ -4,10 +4,12 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { authApi, type User } from "@/lib/api/auth"
 import { getAuthToken, removeAuthToken } from "@/lib/api/config"
 
+export type LoginResult = { ok: true } | { ok: false; message: string }
+
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
-  login: (username: string, password: string) => Promise<boolean>
+  login: (username: string, password: string) => Promise<LoginResult>
   logout: () => void
   isLoading: boolean
 }
@@ -38,14 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<LoginResult> => {
     try {
       const response = await authApi.login({ username, password })
       setUser(response.user)
-      return true
+      return { ok: true }
     } catch (error) {
       console.error("Login error:", error)
-      return false
+      const message =
+        error instanceof Error ? error.message : "Sign-in failed. Please try again."
+      return { ok: false, message }
     }
   }
 

@@ -14,9 +14,22 @@ Mobile/Tablet-optimized billing system for sales agents. Connects to the main St
 
 ## Connection
 
-The E-Billing system connects to the **same backend** as the main Stock Management System:
-- Backend URL: `http://localhost:5000/api` (or your PC's IP address)
-- When invoices are created, stock is automatically updated in the main system
+The E-Billing system connects to the **Express API** (`npm run backend`):
+- Default local URL: `http://localhost:5000/api` (or your PC's IP on the LAN)
+- When invoices are created, stock is updated in the SQLite database used by that API
+
+### Vercel (production frontend)
+
+Production app: **[ebilling-system.vercel.app](https://ebilling-system.vercel.app/)**
+
+The Next.js app on Vercel **does not** run the Express server or SQLite. You must:
+
+1. Host the API somewhere with a **public HTTPS URL** (e.g. Railway, Render, Fly.io, VPS).
+2. In the Vercel project → **Settings → Environment Variables**, set:
+   - `NEXT_PUBLIC_API_URL` = `https://YOUR-API-HOST/api` (must match where Express serves `/api/...`).
+3. **Redeploy** so the new value is baked into the client bundle.
+
+Without this, the browser still calls `localhost` and login will fail on phones and on the live site.
 
 ## Installation
 

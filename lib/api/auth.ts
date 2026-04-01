@@ -19,9 +19,11 @@ export interface LoginResponse {
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
+    const username = credentials.username.trim()
+    const password = credentials.password.trim()
     const response = await apiRequest<LoginResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({ username, password }),
     })
     
     setAuthToken(response.token)

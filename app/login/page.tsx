@@ -12,19 +12,31 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Receipt, Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { API_BASE_URL, apiPointsToLocalhost, getApiDisplayUrl } from "@/lib/api/config"
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+  username: z.string().trim().min(1, "Username is required"),
+  password: z.string().trim().min(1, "Password is required"),
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
+
+function pageIsOnPublicHost(): boolean {
+  if (typeof window === "undefined") return false
+  const h = window.location.hostname
+  return h !== "localhost" && h !== "127.0.0.1"
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const { login, isAuthenticated, isLoading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const {
     register,
@@ -45,15 +57,17 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const success = await login(data.username, data.password)
-      if (success) {
+      const result = await login(data.username, data.password)
+      if (result.ok) {
         router.push("/")
         router.refresh()
       } else {
-        setError("Invalid username or password")
+        setError(result.message)
       }
     } catch (err) {
-      setError("An error occurred. Please try again.")
+      setError(
+        err instanceof Error ? err.message : "An error occurred. Please try again."
+      )
     } finally {
       setIsLoading(false)
     }
@@ -81,14 +95,48 @@ export default function LoginPage() {
           <div>
             <CardTitle className="text-2xl font-bold">E-Billing System</CardTitle>
             <CardDescription className="mt-2">Sales Agent Login</CardDescription>
+            <p className="text-xs text-muted-foreground break-all mt-3" title={API_BASE_URL}>
+              API: {getApiDisplayUrl()}
+            </p>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {mounted && pageIsOnPublicHost() && apiPointsToLocalhost() && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  This site is open on the internet, but the app is still set to use{" "}
+                  <strong>localhost</strong> for the API. Add{" "}
+                  <code className="text-xs">NEXT_PUBLIC_API_URL</code> in your Vercel project →
+                  Settings → Environment Variables (your public backend URL ending in{" "}
+                  <code className="text-xs">/api</code>), then redeploy. Production app:{" "}
+                  <a
+                    href="https://ebilling-system.vercel.app/"
+                    className="underline font-medium"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    ebilling-system.vercel.app
+                  </a>
+                  .
+                </AlertDescription>
+              </Alert>
+            )}
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="space-y-2">
+                  <span className="block">{error}</span>
+                  {error.includes("Invalid username") && (
+                    <span className="block text-sm font-normal opacity-95">
+                      On a new server the default user is <strong>admin</strong> /{" "}
+                      <strong>admin123</strong>. Users you created on another machine stay in that
+                      machine&apos;s database — deploy a backend with its own{" "}
+                      <code className="text-xs">ebilling.sqlite</code> or add users there.
+                    </span>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
 
