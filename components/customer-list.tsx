@@ -1,0 +1,103 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Search, RefreshCcw } from "lucide-react"
+import { clientsApi, type Client } from "@/lib/api/clients"
+import { toast } from "sonner"
+
+export function CustomerList() {
+  const [customers, setCustomers] = useState<Client[]>([])
+  const [search, setSearch] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+
+  const load = async (term?: string) => {
+    try {
+      setIsLoading(true)
+      const data = await clientsApi.getAll(term)
+      setCustomers(data)
+    } catch (error: any) {
+      toast.error("Failed to load customers: " + (error.message || "Unknown error"))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const filtered = customers.filter((c) => {
+    if (!search) return true
+    const s = search.toLowerCase()
+    return (
+      c.name.toLowerCase().includes(s) ||
+      c.client_id.toLowerCase().includes(s) ||
+      (c.email && c.email.toLowerCase().includes(s)) ||
+      (c.phone && c.phone.toLowerCase().includes(s))
+    )
+  })
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+        <div>
+          <CardTitle>Customers</CardTitle>
+          <CardDescription>Existing customers in the system</CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => load(search)}
+          disabled={isLoading}
+          className="h-9 w-9"
+        >
+          <RefreshCcw className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search customers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10"
+          />
+        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading customers...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No customers found</p>
+        ) : (
+          <div className="space-y-2 max-h-[360px] overflow-y-auto">
+            {filtered.map((c) => (
+              <div
+                key={c.id}
+                className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 p-3 border rounded-lg"
+              >
+                <div>
+                  <p className="font-medium">
+                    {c.name}{" "}
+                    <span className="text-xs text-muted-foreground">({c.client_id})</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {c.email || "No email"} • {c.phone || "No phone"}
+                  </p>
+                </div>
+                {c.address && (
+                  <p className="text-xs text-muted-foreground md:text-right">{c.address}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+

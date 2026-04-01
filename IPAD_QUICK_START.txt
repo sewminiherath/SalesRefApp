@@ -1,0 +1,65 @@
+═══════════════════════════════════════════════════════════════
+  E-BILLING SYSTEM - IPAD QUICK START GUIDE
+═══════════════════════════════════════════════════════════════
+
+STEP 1: FIND PC IP ADDRESS
+─────────────────────────────
+On Windows PC:
+  1. Open Command Prompt
+  2. Type: ipconfig
+  3. Note "IPv4 Address" (e.g., 192.168.1.100)
+
+STEP 2: CONFIGURE E-BILLING
+─────────────────────────────
+1. Edit file: E-BILLING/.env.local
+2. Set: NEXT_PUBLIC_API_URL=http://YOUR_PC_IP:5000/api
+   (Replace YOUR_PC_IP with actual IP)
+
+STEP 3: START E-BILLING
+─────────────────────────────
+On PC, run:
+  cd E-BILLING
+  npm run dev
+
+STEP 4: ACCESS FROM IPAD
+─────────────────────────────
+Option A - Browser:
+  1. Open Safari on iPad
+  2. Go to: http://YOUR_PC_IP:3001
+  3. Login: admin / admin123
+
+Option B - Add to Home Screen (Recommended):
+  1. Open Safari → Go to http://YOUR_PC_IP:3001
+  2. Login
+  3. Tap Share button (bottom)
+  4. Tap "Add to Home Screen"
+  5. Tap "Add"
+  6. Icon appears on home screen!
+
+REQUIREMENTS
+─────────────────────────────
+✓ Backend running on PC (port 5000)
+✓ E-Billing running (port 3001)
+✓ iPad and PC on same Wi-Fi network
+✓ Firewall allows connections
+
+TEST CONNECTION
+─────────────────────────────
+From iPad Safari:
+  Visit: http://YOUR_PC_IP:5000/health
+  Should see: {"status":"ok"}
+
+TROUBLESHOOTING
+─────────────────────────────
+Cannot connect?
+  → Check PC IP address
+  → Verify same Wi-Fi network
+  → Check firewall settings
+  → Ensure servers are running
+
+Login fails?
+  → Check backend is running
+  → Verify credentials: admin / admin123
+
+═══════════════════════════════════════════════════════════════
+

@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.52 0.19 252);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.96 0.005 252);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.96 0.005 252);
+  --muted-foreground: oklch(0.5 0.01 252);
+  --accent: oklch(0.96 0.005 252);
+  --accent-foreground: oklch(0.15 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.91 0.005 252);
+  --input: oklch(0.91 0.005 252);
+  --ring: oklch(0.52 0.19 252);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: oklch(0.12 0.01 252);
+  --foreground: oklch(0.92 0.01 252);
+  --card: oklch(0.15 0.01 252);
+  --card-foreground: oklch(0.92 0.01 252);
+  --popover: oklch(0.15 0.01 252);
+  --popover-foreground: oklch(0.92 0.01 252);
+  --primary: oklch(0.6 0.21 252);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.22 0.015 252);
+  --secondary-foreground: oklch(0.92 0.01 252);
+  --muted: oklch(0.22 0.015 252);
+  --muted-foreground: oklch(0.6 0.02 252);
+  --accent: oklch(0.22 0.015 252);
+  --accent-foreground: oklch(0.92 0.01 252);
+  --destructive: oklch(0.5 0.2 27);
+  --destructive-foreground: oklch(0.92 0.01 252);
+  --border: oklch(0.22 0.015 252);
+  --input: oklch(0.22 0.015 252);
+  --ring: oklch(0.6 0.21 252);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Tablet/Mobile optimizations */
+  input, select, textarea, button {
+    font-size: 16px; /* Prevents zoom on iOS */
+    touch-action: manipulation;
+  }
+  
+  /* Fix for Next.js portal elements */
+  nextjs-portal {
+    display: none !important;
+  }
+  
+  /* Ensure portals render correctly */
+  [data-radix-portal] {
+    position: fixed;
+    z-index: 9999;
+  }
+}
+
