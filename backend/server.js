@@ -29,18 +29,18 @@ if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && p
   });
 }
 
-async function sendInvoiceEmail(invoice) {
+async function sendInvoiceEmail(invoice, options = {}) {
   if (!mailTransport) {
-    console.log("Email not configured; skipping invoice email. Set SMTP_* env vars to enable.");
-    return;
+    throw new Error("Email is not configured. Set SMTP_* and EMAIL_FROM environment variables.");
   }
 
   const client = db.getClientById(invoice.client_id);
+  const explicitRecipient =
+    typeof options.to === "string" && options.to.trim() ? options.to.trim() : null;
   const primaryRecipient =
-    (client && client.email) || process.env.EMAIL_TO || process.env.EMAIL_FROM;
+    explicitRecipient || (client && client.email) || process.env.EMAIL_TO || process.env.EMAIL_FROM;
   if (!primaryRecipient) {
-    console.log("No recipient email found for invoice", invoice.invoice_number);
-    return;
+    throw new Error("No recipient email found. Provide an email address.");
   }
 
   // Optional company copy: if EMAIL_TO is set and is different from the
@@ -89,8 +89,10 @@ async function sendInvoiceEmail(invoice) {
 
     await mailTransport.sendMail(mailOptions);
     console.log("Invoice email sent for", invoice.invoice_number, "to", primaryRecipient, "bcc:", companyCopy || "none");
+    return { to: primaryRecipient, bcc: companyCopy || null };
   } catch (err) {
     console.error("Failed to send invoice email", err);
+    throw new Error("Failed to send email.");
   }
 }
 
@@ -309,9 +311,30 @@ app.post("/api/invoices", authMiddleware, (req, res) => {
   const inserted = db.insertInvoice(invoice);
 
   // Send email in background (do not block response)
-  sendInvoiceEmail(inserted);
+  sendInvoiceEmail(inserted).catch((err) => {
+    console.log("Skipping automatic invoice email:", err.message);
+  });
 
   res.status(201).json(inserted);
+});
+
+app.post("/api/invoices/:id/email", authMiddleware, async (req, res) => {
+  const invoice = db.getInvoiceById(req.params.id);
+  if (!invoice) {
+    return res.status(404).json({ error: "Invoice not found" });
+  }
+
+  const to = (req.body?.to || "").toString().trim();
+  if (!to) {
+    return res.status(400).json({ error: "Recipient email is required" });
+  }
+
+  try {
+    const result = await sendInvoiceEmail(invoice, { to });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to send email" });
+  }
 });
 
 // Quotations

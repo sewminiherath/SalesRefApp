@@ -59,5 +59,12 @@ export const invoicesApi = {
   getById: async (id: string): Promise<Invoice> => {
     return apiRequest<Invoice>(`/invoices/${id}`)
   },
+
+  sendEmail: async (id: string, to: string): Promise<{ success: boolean; to: string }> => {
+    return apiRequest<{ success: boolean; to: string }>(`/invoices/${id}/email`, {
+      method: "POST",
+      body: JSON.stringify({ to }),
+    })
+  },
 }
 

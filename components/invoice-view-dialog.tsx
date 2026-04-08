@@ -1,10 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { Download, Printer } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Download, Loader2, Printer, Send } from "lucide-react"
+import { invoicesApi } from "@/lib/api/invoices"
+import { toast } from "sonner"
 import type { Invoice } from "@/lib/api/invoices"
 
 interface InvoiceViewDialogProps {
@@ -19,7 +23,29 @@ function toMoney(value: unknown): string {
 }
 
 export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDialogProps) {
+  const [recipientEmail, setRecipientEmail] = useState("")
+  const [isSending, setIsSending] = useState(false)
+
   if (!invoice) return null
+
+  const handleSendEmail = async () => {
+    const email = recipientEmail.trim()
+    if (!email) {
+      toast.error("Please enter a recipient email address.")
+      return
+    }
+
+    try {
+      setIsSending(true)
+      await invoicesApi.sendEmail(invoice.id, email)
+      toast.success(`Invoice emailed to ${email}`)
+      setRecipientEmail("")
+    } catch (error: any) {
+      toast.error("Failed to send invoice email: " + (error.message || "Unknown error"))
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   const downloadInvoicePDF = (inv: Invoice) => {
     const printWindow = window.open("", "_blank")
@@ -127,6 +153,31 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
         </DialogHeader>
 
         <div className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Email Invoice</p>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="Enter recipient email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+              />
+              <Button onClick={handleSendEmail} disabled={isSending}>
+                {isSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
           {/* Invoice Header */}
           <div className="grid gap-4 md:grid-cols-2">
             <div>
