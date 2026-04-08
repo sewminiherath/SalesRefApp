@@ -229,8 +229,8 @@ export function CreateInvoiceForm() {
               <SelectTrigger className="text-lg h-12">
                 <SelectValue placeholder="Search and select a client" />
               </SelectTrigger>
-              <SelectContent className="z-[10000] bg-card">
-                <div className="p-2 border-b sticky top-0 bg-card z-20">
+              <SelectContent className="p-0">
+                <div className="sticky top-0 z-10 border-b border-border bg-card p-2">
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -307,8 +307,8 @@ export function CreateInvoiceForm() {
                 <SelectTrigger className="text-lg h-12">
                   <SelectValue placeholder="Search and select an item" />
                 </SelectTrigger>
-                <SelectContent className="z-[10000] bg-card">
-                  <div className="p-2 border-b sticky top-0 bg-card z-20">
+                <SelectContent className="p-0">
+                  <div className="sticky top-0 z-10 border-b border-border bg-card p-2">
                     <div className="relative">
                       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
