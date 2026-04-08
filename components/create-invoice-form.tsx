@@ -238,6 +238,8 @@ export function CreateInvoiceForm() {
                       value={clientSearch}
                       onChange={(e) => setClientSearch(e.target.value)}
                       className="pl-8 h-9"
+                      onKeyDown={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => e.stopPropagation()}
                     />
                   </div>
@@ -314,6 +316,8 @@ export function CreateInvoiceForm() {
                         value={itemSearch}
                         onChange={(e) => setItemSearch(e.target.value)}
                         className="pl-8 h-9"
+                        onKeyDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
