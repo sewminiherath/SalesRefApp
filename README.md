@@ -42,6 +42,18 @@ This repo is configured to deploy the Next.js frontend to GitHub Pages via GitHu
 
 Note: GitHub Pages hosts only the frontend static files. Your Express + SQLite backend must be hosted separately.
 
+### Railway backend (recommended)
+
+This repo includes `railway.json`, so Railway can auto-start the backend (`npm run start:backend`).
+
+1. Go to [Railway](https://railway.app/) and create a new project from GitHub repo `sewminiherath/SalesRefApp`.
+2. Railway will build and start the API service automatically.
+3. Open the generated Railway domain and verify:
+   - `https://YOUR-RAILWAY-DOMAIN/api/health` returns `{ "status": "ok" }`
+4. In GitHub repo → **Settings → Secrets and variables → Actions**, set:
+   - `NEXT_PUBLIC_API_URL=https://YOUR-RAILWAY-DOMAIN/api`
+5. Re-run GitHub Pages workflow to rebuild frontend with the new API URL.
+
 ## Installation
 
 ### Step 1: Install Dependencies
