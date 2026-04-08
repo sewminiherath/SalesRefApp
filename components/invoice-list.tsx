@@ -10,6 +10,11 @@ import { invoicesApi, type Invoice } from "@/lib/api/invoices"
 import { toast } from "sonner"
 import { InvoiceViewDialog } from "@/components/invoice-view-dialog"
 
+function toMoney(value: unknown): string {
+  const n = Number(value)
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00"
+}
+
 export function InvoiceList() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -97,7 +102,7 @@ export function InvoiceList() {
                     </div>
                     <p className="text-sm text-muted-foreground">{invoice.client_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(invoice.date).toLocaleDateString()} • Rs. {invoice.total.toFixed(2)}
+                      {new Date(invoice.date).toLocaleDateString()} • Rs. {toMoney(invoice.total)}
                     </p>
                   </div>
                   <Button

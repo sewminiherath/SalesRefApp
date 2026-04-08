@@ -13,6 +13,11 @@ interface InvoiceViewDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+function toMoney(value: unknown): string {
+  const n = Number(value)
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00"
+}
+
 export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDialogProps) {
   if (!invoice) return null
 
@@ -65,8 +70,8 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
                 <tr>
                   <td>${item.item_name}</td>
                   <td>${item.quantity}</td>
-                  <td>Rs. ${item.unit_price.toFixed(2)}</td>
-                  <td>Rs. ${item.total.toFixed(2)}</td>
+                  <td>Rs. ${toMoney(item.unit_price)}</td>
+                  <td>Rs. ${toMoney(item.total)}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -74,19 +79,19 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
           <div class="summary">
             <div class="summary-row">
               <span>Subtotal:</span>
-              <span>Rs. ${inv.subtotal.toFixed(2)}</span>
+              <span>Rs. ${toMoney(inv.subtotal)}</span>
             </div>
             <div class="summary-row">
               <span>Discount:</span>
-              <span>-Rs. ${inv.discount.toFixed(2)}</span>
+              <span>-Rs. ${toMoney(inv.discount)}</span>
             </div>
             <div class="summary-row">
               <span>Tax:</span>
-              <span>Rs. ${inv.tax.toFixed(2)}</span>
+              <span>Rs. ${toMoney(inv.tax)}</span>
             </div>
             <div class="summary-row total">
               <span>Total:</span>
-              <span>Rs. ${inv.total.toFixed(2)}</span>
+              <span>Rs. ${toMoney(inv.total)}</span>
             </div>
           </div>
         </body>
@@ -138,7 +143,7 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-lg font-semibold">Rs. {invoice.total.toFixed(2)}</p>
+              <p className="text-lg font-semibold">Rs. {toMoney(invoice.total)}</p>
             </div>
           </div>
 
@@ -153,10 +158,10 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
                   <div>
                     <p className="font-medium">{item.item_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Rs. {item.unit_price.toFixed(2)} × {item.quantity}
+                      Rs. {toMoney(item.unit_price)} × {item.quantity}
                     </p>
                   </div>
-                  <p className="font-semibold">Rs. {item.total.toFixed(2)}</p>
+                  <p className="font-semibold">Rs. {toMoney(item.total)}</p>
                 </div>
               ))}
             </div>
@@ -166,20 +171,20 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
           <div className="space-y-2 bg-muted p-4 rounded-lg">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal:</span>
-              <span className="font-medium">Rs. {invoice.subtotal.toFixed(2)}</span>
+              <span className="font-medium">Rs. {toMoney(invoice.subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount:</span>
-              <span className="font-medium text-destructive">-Rs. {invoice.discount.toFixed(2)}</span>
+              <span className="font-medium text-destructive">-Rs. {toMoney(invoice.discount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax:</span>
-              <span className="font-medium">Rs. {invoice.tax.toFixed(2)}</span>
+              <span className="font-medium">Rs. {toMoney(invoice.tax)}</span>
             </div>
             <Separator className="my-2" />
             <div className="flex justify-between text-lg">
               <span className="font-semibold">Grand Total:</span>
-              <span className="font-bold">Rs. {invoice.total.toFixed(2)}</span>
+              <span className="font-bold">Rs. {toMoney(invoice.total)}</span>
             </div>
           </div>
         </div>
