@@ -135,13 +135,34 @@ function rowToItem(row) {
 }
 
 function rowToInvoice(row) {
+  let parsedItems = [];
+  if (row.items) {
+    try {
+      const raw = JSON.parse(row.items);
+      if (Array.isArray(raw)) {
+        // Keep backward compatibility: some rows store line_total, UI expects total.
+        parsedItems = raw.map((it) => ({
+          ...it,
+          total:
+            it && it.total != null
+              ? it.total
+              : it && it.line_total != null
+                ? it.line_total
+                : 0,
+        }));
+      }
+    } catch {
+      parsedItems = [];
+    }
+  }
+
   return {
     id: String(row.id),
     invoice_number: row.invoice_number,
     date: row.date,
     client_id: row.client_id,
     client_name: row.client_name || "",
-    items: row.items ? JSON.parse(row.items) : [],
+    items: parsedItems,
     subtotal: row.subtotal,
     discount: row.discount,
     tax: row.tax,
@@ -250,7 +271,10 @@ module.exports = {
     return { ...item, id: String(result.lastInsertRowid) };
   },
 
-  getInvoices: () => db.prepare("SELECT * FROM invoices").all().map(rowToInvoice),
+  getInvoices: () => {
+    const rows = db.prepare("SELECT * FROM invoices ORDER BY id DESC").all();
+    return rows.map(rowToInvoice);
+  },
   getInvoiceById: (id) => {
     const row = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
     return row ? rowToInvoice(row) : null;
