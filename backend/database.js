@@ -2,12 +2,24 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+// Use persistent path when available (e.g. Railway volume mounted at /data).
+// Priority:
+// 1) DB_PATH (full sqlite file path)
+// 2) DATA_DIR (directory path, file name defaults to ebilling.sqlite)
+// 3) local backend/data fallback (dev)
+const defaultDataDir = path.join(__dirname, "data");
+const configuredDataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : defaultDataDir;
+const dbPath = process.env.DB_PATH
+  ? path.resolve(process.env.DB_PATH)
+  : path.join(configuredDataDir, "ebilling.sqlite");
+
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, "ebilling.sqlite");
 const db = new Database(dbPath);
 
 // Schema

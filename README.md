@@ -54,6 +54,18 @@ This repo includes `railway.json`, so Railway can auto-start the backend (`npm r
    - `NEXT_PUBLIC_API_URL=https://YOUR-RAILWAY-DOMAIN/api`
 5. Re-run GitHub Pages workflow to rebuild frontend with the new API URL.
 
+#### Keep data after restart/deploy (important)
+
+SQLite must be stored on a persistent volume in Railway, otherwise customers/products/invoices can disappear after redeploy.
+
+1. In Railway service, add a **Volume** (Mount path: `/data`).
+2. In Railway Variables, set:
+   - `DATA_DIR=/data`
+   - (optional) `DB_PATH=/data/ebilling.sqlite`
+3. Redeploy the backend service once.
+
+After this, all inserted data persists across restarts and new deployments.
+
 ## Installation
 
 ### Step 1: Install Dependencies
