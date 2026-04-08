@@ -37,5 +37,20 @@ export const clientsApi = {
       address: data.address || "",
     }
   },
+
+  update: async (id: string, client: Omit<Client, "id">): Promise<Client> => {
+    const data = await apiRequest<any>(`/clients/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(client),
+    })
+    return {
+      id: data.id,
+      client_id: data.client_id,
+      name: data.name,
+      email: data.email || "",
+      phone: data.phone || "",
+      address: data.address || "",
+    }
+  },
 }
 

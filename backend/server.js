@@ -161,6 +161,28 @@ app.post("/api/clients", authMiddleware, (req, res) => {
   res.status(201).json(client);
 });
 
+app.put("/api/clients/:id", authMiddleware, (req, res) => {
+  const data = req.body || {};
+  if (!data.name || !data.client_id) {
+    return res.status(400).json({ error: "client_id and name are required" });
+  }
+
+  const existing = db.getClientById(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ error: "Client not found" });
+  }
+
+  const updated = db.updateClient(req.params.id, {
+    client_id: data.client_id,
+    name: data.name,
+    email: data.email || "",
+    phone: data.phone || "",
+    address: data.address || "",
+  });
+
+  res.json(updated);
+});
+
 // Items
 app.get("/api/items", authMiddleware, (req, res) => {
   const search = (req.query.search || "").toString().trim() || undefined;
@@ -189,6 +211,35 @@ app.post("/api/items", authMiddleware, (req, res) => {
   } catch (err) {
     console.error("Error adding product:", err);
     res.status(500).json({ error: err.message || "Failed to save product" });
+  }
+});
+
+app.put("/api/items/:id", authMiddleware, (req, res) => {
+  try {
+    const data = req.body || {};
+    if (!data.item_code || !data.item_name) {
+      return res.status(400).json({ error: "item_code and item_name are required" });
+    }
+
+    const existing = db.getItemById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    const updated = db.updateItem(req.params.id, {
+      item_code: data.item_code,
+      item_name: data.item_name,
+      category: data.category || "General",
+      unit_price: Number(data.unit_price) || 0,
+      quantity: Number(data.quantity) || 0,
+      reorder_level: Number(data.reorder_level) || 0,
+      description: data.description || "",
+      image: data.image || null,
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating product:", err);
+    res.status(500).json({ error: err.message || "Failed to update product" });
   }
 });
 

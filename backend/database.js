@@ -236,6 +236,20 @@ module.exports = {
       );
     return { ...client, id: String(result.lastInsertRowid) };
   },
+  updateClient: (id, client) => {
+    db.prepare(
+      "UPDATE clients SET client_id = ?, name = ?, email = ?, phone = ?, address = ? WHERE id = ?"
+    ).run(
+      client.client_id,
+      client.name,
+      client.email || "",
+      client.phone || "",
+      client.address || "",
+      id
+    );
+    const row = db.prepare("SELECT * FROM clients WHERE id = ?").get(id);
+    return row ? rowToClient(row) : null;
+  },
 
   getItems: (search) => {
     let rows = db.prepare("SELECT * FROM items").all();
@@ -269,6 +283,23 @@ module.exports = {
         item.image || null
       );
     return { ...item, id: String(result.lastInsertRowid) };
+  },
+  updateItem: (id, item) => {
+    db.prepare(
+      "UPDATE items SET item_code = ?, item_name = ?, category = ?, unit_price = ?, quantity = ?, reorder_level = ?, description = ?, image = ? WHERE id = ?"
+    ).run(
+      item.item_code,
+      item.item_name,
+      item.category || "General",
+      item.unit_price,
+      item.quantity,
+      item.reorder_level,
+      item.description || "",
+      item.image || null,
+      id
+    );
+    const row = db.prepare("SELECT * FROM items WHERE id = ?").get(id);
+    return row ? rowToItem(row) : null;
   },
 
   getInvoices: () => {

@@ -46,5 +46,23 @@ export const itemsApi = {
       image: data.image || undefined,
     }
   },
+
+  update: async (id: string, item: Omit<StockItem, "id">): Promise<StockItem> => {
+    const data = await apiRequest<any>(`/items/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(item),
+    })
+    return {
+      id: data.id,
+      item_code: data.item_code,
+      item_name: data.item_name,
+      category: data.category,
+      unit_price: data.unit_price,
+      quantity: data.quantity,
+      reorder_level: data.reorder_level,
+      description: data.description || "",
+      image: data.image || undefined,
+    }
+  },
 }
 

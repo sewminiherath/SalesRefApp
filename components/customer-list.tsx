@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Search, RefreshCcw } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Search, RefreshCcw, Pencil } from "lucide-react"
 import { clientsApi, type Client } from "@/lib/api/clients"
 import { toast } from "sonner"
 
@@ -12,6 +14,15 @@ export function CustomerList() {
   const [customers, setCustomers] = useState<Client[]>([])
   const [search, setSearch] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [editing, setEditing] = useState<Client | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editForm, setEditForm] = useState({
+    client_id: "",
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+  })
 
   const load = async (term?: string) => {
     try {
@@ -39,6 +50,43 @@ export function CustomerList() {
       (c.phone && c.phone.toLowerCase().includes(s))
     )
   })
+
+  const openEdit = (c: Client) => {
+    setEditing(c)
+    setEditForm({
+      client_id: c.client_id,
+      name: c.name,
+      email: c.email || "",
+      phone: c.phone || "",
+      address: c.address || "",
+    })
+  }
+
+  const saveEdit = async () => {
+    if (!editing) return
+    if (!editForm.client_id.trim() || !editForm.name.trim()) {
+      toast.error("Client ID and Name are required")
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      const updated = await clientsApi.update(editing.id, {
+        client_id: editForm.client_id.trim(),
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        address: editForm.address.trim(),
+      })
+      setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+      toast.success("Customer updated")
+      setEditing(null)
+    } catch (error: any) {
+      toast.error("Failed to update customer: " + (error.message || "Unknown error"))
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <Card>
@@ -91,11 +139,72 @@ export function CustomerList() {
                 {c.address && (
                   <p className="text-xs text-muted-foreground md:text-right">{c.address}</p>
                 )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => openEdit(c)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Customer ID *</Label>
+              <Input
+                value={editForm.client_id}
+                onChange={(e) => setEditForm((f) => ({ ...f, client_id: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Name *</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Email</Label>
+              <Input
+                value={editForm.email}
+                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Phone</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Address</Label>
+              <Input
+                value={editForm.address}
+                onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditing(null)} disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button onClick={saveEdit} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
