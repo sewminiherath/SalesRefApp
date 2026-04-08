@@ -130,4 +130,3 @@ When a sales agent creates an invoice:
 Same as main system:
 - Username: `admin`
 - Password: `admin123`
-
