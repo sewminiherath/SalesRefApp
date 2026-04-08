@@ -31,6 +31,17 @@ The Next.js app on Vercel **does not** run the Express server or SQLite. You mus
 
 Without this, the browser still calls `localhost` and login will fail on phones and on the live site.
 
+### GitHub Pages (frontend only)
+
+This repo is configured to deploy the Next.js frontend to GitHub Pages via GitHub Actions.
+
+1. In your repository (`SalesRefApp`) go to **Settings → Pages** and set **Source** to `GitHub Actions`.
+2. In **Settings → Secrets and variables → Actions**, add:
+   - `NEXT_PUBLIC_API_URL` = your public backend URL (for example `https://your-api-host/api`)
+3. Push to `main` (or run the workflow manually). The workflow builds and publishes the static site from `out/`.
+
+Note: GitHub Pages hosts only the frontend static files. Your Express + SQLite backend must be hosted separately.
+
 ## Installation
 
 ### Step 1: Install Dependencies
