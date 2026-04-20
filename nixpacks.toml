@@ -1,0 +1,4 @@
+# Used when the builder is Nixpacks: install deps but do not run `npm run build` (Next.js).
+# The API is plain Node (`backend/server.js`). Railway Railpack also reads `railway.json`.
+[phases.build]
+cmds = ["true"]

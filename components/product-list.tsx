@@ -143,7 +143,7 @@ export function ProductList() {
                       className="h-12 w-12 rounded object-cover border shrink-0"
                     />
                   ) : (
-                    <div className="h-12 w-12 rounded border bg-muted shrink-0 flex items-center justify-center text-muted-foreground text-xs">
+                    <div className="h-12 w-12 rounded border border-zinc-200 bg-white shrink-0 flex items-center justify-center text-zinc-500 text-xs">
                       No img
                     </div>
                   )}

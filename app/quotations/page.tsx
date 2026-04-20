@@ -182,7 +182,7 @@ export default function QuotationsPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -200,7 +200,7 @@ export default function QuotationsPage() {
   const selectedClientData = clients.find((c) => c.id === selectedClient)
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-white p-4">
       <div className="max-w-4xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -378,7 +378,7 @@ export default function QuotationsPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2 bg-muted p-4 rounded-lg">
+                    <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-4">
                       <div className="flex justify-between text-lg">
                         <span>Subtotal:</span>
                         <span className="font-medium">Rs. {subtotal.toFixed(2)}</span>

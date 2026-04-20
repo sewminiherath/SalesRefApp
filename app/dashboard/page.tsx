@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -80,9 +80,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-card shadow-sm">
+      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white shadow-sm">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <BackButton fallbackHref="/login" />
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                 {recentInvoices.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-100 transition-colors"
                   >
                     <div>
                       <p className="font-medium">{invoice.invoice_number}</p>

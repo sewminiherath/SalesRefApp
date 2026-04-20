@@ -18,12 +18,12 @@ export const itemsApi = {
     const data = await apiRequest<any[]>(`/items${query}`)
     return data.map((item: any) => ({
       id: item.id,
-      item_code: item.item_code,
-      item_name: item.item_name,
-      category: item.category,
-      unit_price: item.unit_price,
-      quantity: item.quantity,
-      reorder_level: item.reorder_level,
+      item_code: item.item_code || "",
+      item_name: item.item_name || "",
+      category: item.category || "",
+      unit_price: Number(item.unit_price) || 0,
+      quantity: Number(item.quantity) || 0,
+      reorder_level: Number(item.reorder_level) || 0,
       description: item.description || "",
       image: item.image || undefined,
     }))

@@ -48,13 +48,21 @@ export function InvoiceList() {
   })
 
   const getStatusBadge = (status: Invoice["status"]) => {
+    const base =
+      "shrink-0 rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold text-white shadow-none"
     switch (status) {
       case "paid":
-        return <Badge className="bg-green-500">Paid</Badge>
+        return (
+          <Badge className={`${base} bg-emerald-600 hover:bg-emerald-600`}>Paid</Badge>
+        )
       case "pending":
-        return <Badge className="bg-yellow-500">Pending</Badge>
+        return (
+          <Badge className={`${base} bg-amber-500 hover:bg-amber-500`}>Pending</Badge>
+        )
       case "overdue":
-        return <Badge className="bg-red-500">Overdue</Badge>
+        return (
+          <Badge className={`${base} bg-red-600 hover:bg-red-600`}>Overdue</Badge>
+        )
     }
   }
 
@@ -67,41 +75,47 @@ export function InvoiceList() {
   }
 
   return (
-    <div className="space-y-4 max-w-4xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>All Invoices</CardTitle>
-          <CardDescription>View and manage invoices</CardDescription>
+    <div className="mx-auto max-w-4xl space-y-4">
+      <Card className="overflow-hidden border-gray-200 bg-white shadow-sm">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold tracking-tight text-zinc-900">
+            All Invoices
+          </CardTitle>
+          <CardDescription className="text-zinc-500">
+            View and manage invoices
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
             <Input
               placeholder="Search invoices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 text-lg h-12"
+              className="h-12 border-gray-200 bg-white pl-10 text-base text-zinc-900 placeholder:text-zinc-400 shadow-none"
             />
           </div>
 
           {filteredInvoices.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="py-12 text-center text-zinc-500">
               <p>No invoices found</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filteredInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:border-gray-300 hover:shadow-md"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-lg">{invoice.invoice_number}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <p className="text-lg font-semibold text-zinc-900">
+                        {invoice.invoice_number}
+                      </p>
                       {getStatusBadge(invoice.status)}
                     </div>
-                    <p className="text-sm text-muted-foreground">{invoice.client_name}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-medium text-zinc-900">{invoice.client_name}</p>
+                    <p className="text-sm text-zinc-600">
                       {new Date(invoice.date).toLocaleDateString()} • Rs. {toMoney(invoice.total)}
                     </p>
                   </div>
@@ -109,7 +123,7 @@ export function InvoiceList() {
                     variant="outline"
                     size="icon"
                     onClick={() => setViewingInvoice(invoice)}
-                    className="h-12 w-12"
+                    className="h-12 w-12 shrink-0 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
                   >
                     <Eye className="h-5 w-5" />
                   </Button>

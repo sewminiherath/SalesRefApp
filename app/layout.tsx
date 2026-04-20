@@ -16,16 +16,23 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="light" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="antialiased">
+      <body className="min-h-screen bg-white text-zinc-900 antialiased">
         <AuthProvider>
           {children}
-          <Toaster position="top-center" />
+          <Toaster
+            position="top-center"
+            theme="light"
+            toastOptions={{
+              className: "border border-zinc-200 bg-white text-zinc-900 shadow-lg",
+            }}
+          />
         </AuthProvider>
       </body>
     </html>

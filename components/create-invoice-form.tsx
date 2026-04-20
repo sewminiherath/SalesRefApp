@@ -214,6 +214,31 @@ export function CreateInvoiceForm() {
   }
 
   const selectedClientData = clients.find((c) => c.id === selectedClient)
+  const normalizedClientSearch = clientSearch.trim().toLowerCase()
+  const filteredClients = clients.filter((client) => {
+    if (!normalizedClientSearch) return true
+    const name = (client.name || "").toLowerCase()
+    const clientId = (client.client_id || "").toLowerCase()
+    const email = (client.email || "").toLowerCase()
+    return (
+      name.includes(normalizedClientSearch) ||
+      clientId.includes(normalizedClientSearch) ||
+      email.includes(normalizedClientSearch)
+    )
+  })
+
+  const normalizedItemSearch = itemSearch.trim().toLowerCase()
+  const filteredItems = items.filter((item) => {
+    if (!normalizedItemSearch) return true
+    const itemName = (item.item_name || "").toLowerCase()
+    const itemCode = (item.item_code || "").toLowerCase()
+    const itemCategory = (item.category || "").toLowerCase()
+    return (
+      itemName.includes(normalizedItemSearch) ||
+      itemCode.includes(normalizedItemSearch) ||
+      itemCategory.includes(normalizedItemSearch)
+    )
+  })
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-4xl mx-auto">
@@ -225,57 +250,38 @@ export function CreateInvoiceForm() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Select Client *</Label>
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger className="text-lg h-12">
-                <SelectValue placeholder="Search and select a client" />
-              </SelectTrigger>
-              <SelectContent className="p-0">
-                <div className="sticky top-0 z-10 border-b border-border bg-card p-2">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Search clients..."
-                      value={clientSearch}
-                      onChange={(e) => setClientSearch(e.target.value)}
-                      className="pl-8 h-9"
-                      onKeyDown={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                </div>
-                {clients
-                  .filter((client) => {
-                    if (!clientSearch) return true
-                    const search = clientSearch.toLowerCase()
-                    return (
-                      client.name.toLowerCase().includes(search) ||
-                      client.client_id.toLowerCase().includes(search) ||
-                      (client.email && client.email.toLowerCase().includes(search))
-                    )
-                  })
-                  .map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name} ({client.client_id})
-                    </SelectItem>
-                  ))}
-                {clients.filter((client) => {
-                  if (!clientSearch) return false
-                  const search = clientSearch.toLowerCase()
-                  return (
-                    client.name.toLowerCase().includes(search) ||
-                    client.client_id.toLowerCase().includes(search) ||
-                    (client.email && client.email.toLowerCase().includes(search))
-                  )
-                }).length === 0 && clientSearch && (
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search clients..."
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                className="pl-8 h-10"
+              />
+            </div>
+            <div className="rounded-md border border-zinc-200 bg-white">
+              <div className="max-h-56 overflow-y-auto">
+                {filteredClients.map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    onClick={() => setSelectedClient(client.id)}
+                    className={`w-full px-3 py-2 text-left text-sm border-b border-zinc-100 last:border-b-0 ${
+                      selectedClient === client.id ? "bg-zinc-100 font-medium" : "hover:bg-zinc-50"
+                    }`}
+                  >
+                    {client.name} ({client.client_id})
+                  </button>
+                ))}
+                {filteredClients.length === 0 && (
                   <div className="p-2 text-sm text-muted-foreground text-center">
                     No clients found
                   </div>
                 )}
-              </SelectContent>
-            </Select>
+              </div>
+            </div>
             {selectedClientData && (
-              <div className="p-3 bg-muted rounded-lg text-sm">
+              <div className="p-3 rounded-lg border border-zinc-200 bg-white text-sm">
                 <p><strong>Email:</strong> {selectedClientData.email || "N/A"}</p>
                 <p><strong>Phone:</strong> {selectedClientData.phone || "N/A"}</p>
               </div>
@@ -303,55 +309,36 @@ export function CreateInvoiceForm() {
           <div className="flex gap-2">
             <div className="flex-1 space-y-2">
               <Label>Select Item</Label>
-              <Select value={currentItem} onValueChange={setCurrentItem}>
-                <SelectTrigger className="text-lg h-12">
-                  <SelectValue placeholder="Search and select an item" />
-                </SelectTrigger>
-                <SelectContent className="p-0">
-                  <div className="sticky top-0 z-10 border-b border-border bg-card p-2">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Search items..."
-                        value={itemSearch}
-                        onChange={(e) => setItemSearch(e.target.value)}
-                        className="pl-8 h-9"
-                        onKeyDown={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </div>
-                  {items
-                    .filter((item) => {
-                      if (!itemSearch) return true
-                      const search = itemSearch.toLowerCase()
-                      return (
-                        item.item_name.toLowerCase().includes(search) ||
-                        item.item_code.toLowerCase().includes(search) ||
-                        item.category.toLowerCase().includes(search)
-                      )
-                    })
-                    .map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.item_name} - Rs. {item.unit_price.toFixed(2)} (Stock: {item.quantity})
-                      </SelectItem>
-                    ))}
-                  {items.filter((item) => {
-                    if (!itemSearch) return false
-                    const search = itemSearch.toLowerCase()
-                    return (
-                      item.item_name.toLowerCase().includes(search) ||
-                      item.item_code.toLowerCase().includes(search) ||
-                      item.category.toLowerCase().includes(search)
-                    )
-                  }).length === 0 && itemSearch && (
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search items..."
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  className="pl-8 h-10"
+                />
+              </div>
+              <div className="rounded-md border border-zinc-200 bg-white">
+                <div className="max-h-56 overflow-y-auto">
+                  {filteredItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setCurrentItem(item.id)}
+                      className={`w-full px-3 py-2 text-left text-sm border-b border-zinc-100 last:border-b-0 ${
+                        currentItem === item.id ? "bg-zinc-100 font-medium" : "hover:bg-zinc-50"
+                      }`}
+                    >
+                      {item.item_name} - Rs. {item.unit_price.toFixed(2)} (Stock: {item.quantity})
+                    </button>
+                  ))}
+                  {filteredItems.length === 0 && (
                     <div className="p-2 text-sm text-muted-foreground text-center">
                       No items found
                     </div>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
             </div>
             <div className="w-24 space-y-2">
               <Label>Qty</Label>
@@ -472,7 +459,7 @@ export function CreateInvoiceForm() {
                 </div>
                 <div className="space-y-2">
                   <Label>Change (Rs.)</Label>
-                  <div className="h-12 flex items-center rounded-md border bg-muted px-3 text-lg">
+                  <div className="h-12 flex items-center rounded-md border border-zinc-200 bg-white px-3 text-lg">
                     Rs. {Math.max(Number.parseFloat(cashAmount || "0") - grandTotal, 0).toFixed(2)}
                   </div>
                 </div>
@@ -523,7 +510,7 @@ export function CreateInvoiceForm() {
               </div>
             )}
 
-            <div className="space-y-2 bg-muted p-4 rounded-lg">
+            <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-4">
               <div className="flex justify-between text-lg">
                 <span className="text-muted-foreground">Subtotal:</span>
                 <span className="font-medium">Rs. {subtotal.toFixed(2)}</span>

@@ -1,14 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Download, Loader2, Printer, Send } from "lucide-react"
-import { invoicesApi } from "@/lib/api/invoices"
-import { toast } from "sonner"
+import { Download, Printer } from "lucide-react"
 import type { Invoice } from "@/lib/api/invoices"
 
 interface InvoiceViewDialogProps {
@@ -23,29 +19,7 @@ function toMoney(value: unknown): string {
 }
 
 export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDialogProps) {
-  const [recipientEmail, setRecipientEmail] = useState("")
-  const [isSending, setIsSending] = useState(false)
-
   if (!invoice) return null
-
-  const handleSendEmail = async () => {
-    const email = recipientEmail.trim()
-    if (!email) {
-      toast.error("Please enter a recipient email address.")
-      return
-    }
-
-    try {
-      setIsSending(true)
-      await invoicesApi.sendEmail(invoice.id, email)
-      toast.success(`Invoice emailed to ${email}`)
-      setRecipientEmail("")
-    } catch (error: any) {
-      toast.error("Failed to send invoice email: " + (error.message || "Unknown error"))
-    } finally {
-      setIsSending(false)
-    }
-  }
 
   const downloadInvoicePDF = (inv: Invoice) => {
     const printWindow = window.open("", "_blank")
@@ -129,19 +103,27 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
   }
 
   const getStatusBadge = (status: Invoice["status"]) => {
+    const base =
+      "rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold text-white shadow-none"
     switch (status) {
       case "paid":
-        return <Badge className="bg-green-500">Paid</Badge>
+        return (
+          <Badge className={`${base} bg-emerald-600 hover:bg-emerald-600`}>Paid</Badge>
+        )
       case "pending":
-        return <Badge className="bg-yellow-500">Pending</Badge>
+        return (
+          <Badge className={`${base} bg-amber-500 hover:bg-amber-500`}>Pending</Badge>
+        )
       case "overdue":
-        return <Badge className="bg-red-500">Overdue</Badge>
+        return (
+          <Badge className={`${base} bg-red-600 hover:bg-red-600`}>Overdue</Badge>
+        )
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white text-zinc-900">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -153,47 +135,22 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Email Invoice</p>
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="Enter recipient email"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-              />
-              <Button onClick={handleSendEmail} disabled={isSending}>
-                {isSending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
           {/* Invoice Header */}
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-sm text-muted-foreground">Invoice Number</p>
+              <p className="text-sm text-zinc-600">Invoice Number</p>
               <p className="text-lg font-semibold">{invoice.invoice_number}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Date</p>
+              <p className="text-sm text-zinc-600">Date</p>
               <p className="font-medium">{new Date(invoice.date).toLocaleDateString()}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Client</p>
+              <p className="text-sm text-zinc-600">Client</p>
               <p className="font-medium">{invoice.client_name}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Amount</p>
+              <p className="text-sm text-zinc-600">Total Amount</p>
               <p className="text-lg font-semibold">Rs. {toMoney(invoice.total)}</p>
             </div>
           </div>
@@ -205,37 +162,40 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
             <h3 className="font-semibold mb-3">Line Items</h3>
             <div className="space-y-2">
               {invoice.items.map((item: any, index: number) => (
-                <div key={index} className="flex justify-between p-3 border rounded-lg">
+                <div
+                  key={index}
+                  className="flex justify-between rounded-lg border border-zinc-200 bg-white p-3"
+                >
                   <div>
-                    <p className="font-medium">{item.item_name}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-medium text-zinc-900">{item.item_name}</p>
+                    <p className="text-sm text-zinc-600">
                       Rs. {toMoney(item.unit_price)} × {item.quantity}
                     </p>
                   </div>
-                  <p className="font-semibold">Rs. {toMoney(item.total)}</p>
+                  <p className="font-semibold text-zinc-900">Rs. {toMoney(item.total)}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Summary */}
-          <div className="space-y-2 bg-muted p-4 rounded-lg">
+          <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-4">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal:</span>
-              <span className="font-medium">Rs. {toMoney(invoice.subtotal)}</span>
+              <span className="text-zinc-600">Subtotal:</span>
+              <span className="font-medium text-zinc-900">Rs. {toMoney(invoice.subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Discount:</span>
-              <span className="font-medium text-destructive">-Rs. {toMoney(invoice.discount)}</span>
+              <span className="text-zinc-600">Discount:</span>
+              <span className="font-medium text-red-600">-Rs. {toMoney(invoice.discount)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax:</span>
-              <span className="font-medium">Rs. {toMoney(invoice.tax)}</span>
+              <span className="text-zinc-600">Tax:</span>
+              <span className="font-medium text-zinc-900">Rs. {toMoney(invoice.tax)}</span>
             </div>
             <Separator className="my-2" />
             <div className="flex justify-between text-lg">
-              <span className="font-semibold">Grand Total:</span>
-              <span className="font-bold">Rs. {toMoney(invoice.total)}</span>
+              <span className="font-semibold text-zinc-900">Grand Total:</span>
+              <span className="font-bold text-zinc-900">Rs. {toMoney(invoice.total)}</span>
             </div>
           </div>
         </div>
