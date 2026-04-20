@@ -34,6 +34,8 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_REQUIRE_TLS = process.env.SMTP_REQUIRE_TLS === "true";
 const SMTP_IGNORE_TLS = process.env.SMTP_IGNORE_TLS === "true";
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
 function smtpConfigured() {
   return Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
@@ -95,6 +97,60 @@ function formatEmailError(err) {
     return "SMTP authentication failed. Check SMTP_USER/SMTP_PASS (or app password).";
   }
   return msg || "Failed to send email";
+}
+
+function getMailParts(invoice) {
+  const subject = `Invoice ${invoice.invoice_number} - Total Rs. ${invoice.total.toFixed(2)}`;
+  const lines = (invoice.items || [])
+    .map(
+      (it) =>
+        `${it.item_name || ""} x ${it.quantity} @ Rs. ${it.unit_price?.toFixed?.(2) ?? it.unit_price} = Rs. ${it.line_total?.toFixed?.(2) ?? it.line_total}`
+    )
+    .join("\n");
+
+  const textBody = [
+    "Invoice details:",
+    "",
+    `Invoice: ${invoice.invoice_number}`,
+    `Date: ${invoice.date}`,
+    `Client: ${invoice.client_name || "N/A"}`,
+    "",
+    lines,
+    "",
+    `Subtotal: Rs. ${invoice.subtotal.toFixed(2)}`,
+    `Discount: Rs. ${invoice.discount.toFixed(2)}`,
+    `Tax: Rs. ${invoice.tax.toFixed(2)}`,
+    `Total: Rs. ${invoice.total.toFixed(2)}`,
+    "",
+    "E-Billing System",
+  ].join("\n");
+
+  return { subject, textBody };
+}
+
+async function sendWithResend(to, subject, text) {
+  if (!RESEND_API_KEY) {
+    throw new Error("Resend fallback not configured (set RESEND_API_KEY).");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM || RESEND_FROM_EMAIL,
+      to: [to],
+      subject,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Resend API failed (${response.status}): ${body}`);
+  }
 }
 
 function isTimeoutError(err) {
@@ -159,6 +215,17 @@ async function sendMailWithFallback(mailOptions) {
     }
   }
 
+  // Final fallback: HTTPS email API (avoids blocked SMTP routes)
+  if (RESEND_API_KEY) {
+    try {
+      await sendWithResend(mailOptions.to, mailOptions.subject, mailOptions.text);
+      console.log(`Email sent via Resend fallback to ${mailOptions.to}`);
+      return;
+    } catch (apiErr) {
+      console.error("Resend fallback failed:", formatEmailError(apiErr), apiErr);
+    }
+  }
+
   throw lastErr || new Error("Failed to send email");
 }
 
@@ -177,29 +244,7 @@ async function sendInvoiceEmail(invoice) {
     return;
   }
 
-  const subject = `Invoice ${invoice.invoice_number} - Total Rs. ${invoice.total.toFixed(2)}`;
-
-  const lines = invoice.items
-    .map(
-      (it) =>
-        `${it.item_name || ""} x ${it.quantity} @ Rs. ${it.unit_price?.toFixed?.(2) ?? it.unit_price} = Rs. ${it.line_total?.toFixed?.(2) ?? it.line_total}`
-    )
-    .join("\n");
-
-  const textBody = [
-    `Dear ${client?.name || "Customer"},`,
-    "",
-    `Thank you for your purchase. Here are the details for invoice ${invoice.invoice_number}:`,
-    "",
-    lines,
-    "",
-    `Subtotal: Rs. ${invoice.subtotal.toFixed(2)}`,
-    `Discount: Rs. ${invoice.discount.toFixed(2)}`,
-    `Tax: Rs. ${invoice.tax.toFixed(2)}`,
-    `Total: Rs. ${invoice.total.toFixed(2)}`,
-    "",
-    "E-Billing System",
-  ].join("\n");
+  const { subject, textBody } = getMailParts(invoice);
 
   try {
     const mailOptions = {
@@ -230,31 +275,7 @@ async function sendInvoiceEmailToRecipient(invoice, recipientEmail) {
     throw new Error("Recipient email is required.")
   }
 
-  const subject = `Invoice ${invoice.invoice_number} - Total Rs. ${invoice.total.toFixed(2)}`
-
-  const lines = (invoice.items || [])
-    .map(
-      (it) =>
-        `${it.item_name || ""} x ${it.quantity} @ Rs. ${it.unit_price?.toFixed?.(2) ?? it.unit_price} = Rs. ${it.line_total?.toFixed?.(2) ?? it.line_total}`
-    )
-    .join("\n")
-
-  const textBody = [
-    "Invoice details:",
-    "",
-    `Invoice: ${invoice.invoice_number}`,
-    `Date: ${invoice.date}`,
-    `Client: ${invoice.client_name || "N/A"}`,
-    "",
-    lines,
-    "",
-    `Subtotal: Rs. ${invoice.subtotal.toFixed(2)}`,
-    `Discount: Rs. ${invoice.discount.toFixed(2)}`,
-    `Tax: Rs. ${invoice.tax.toFixed(2)}`,
-    `Total: Rs. ${invoice.total.toFixed(2)}`,
-    "",
-    "E-Billing System",
-  ].join("\n")
+  const { subject, textBody } = getMailParts(invoice)
 
   await sendMailWithFallback({
     from: process.env.EMAIL_FROM,
