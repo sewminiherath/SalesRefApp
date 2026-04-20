@@ -4,8 +4,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
-import { Download, Printer } from "lucide-react"
-import type { Invoice } from "@/lib/api/invoices"
+import { Input } from "@/components/ui/input"
+import { Loader2, Mail } from "lucide-react"
+import { invoicesApi, type Invoice } from "@/lib/api/invoices"
+import { toast } from "sonner"
+import { useState } from "react"
 
 interface InvoiceViewDialogProps {
   invoice: Invoice | null
@@ -19,87 +22,21 @@ function toMoney(value: unknown): string {
 }
 
 export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDialogProps) {
+  const [emailRecipient, setEmailRecipient] = useState("")
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+
   if (!invoice) return null
 
-  const downloadInvoicePDF = (inv: Invoice) => {
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) return
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice ${inv.invoice_number}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .items-table th { background-color: #f2f2f2; }
-            .summary { float: right; width: 300px; }
-            .summary-row { display: flex; justify-content: space-between; margin: 5px 0; }
-            .total { font-weight: bold; font-size: 1.2em; border-top: 2px solid #000; padding-top: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>INVOICE</h1>
-            <h2>${inv.invoice_number}</h2>
-          </div>
-          <div class="invoice-info">
-            <div>
-              <p><strong>Date:</strong> ${new Date(inv.date).toLocaleDateString()}</p>
-              <p><strong>Client:</strong> ${inv.client_name || "N/A"}</p>
-            </div>
-            <div>
-              <p><strong>Status:</strong> ${inv.status.toUpperCase()}</p>
-            </div>
-          </div>
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${inv.items.map((item: any) => `
-                <tr>
-                  <td>${item.item_name}</td>
-                  <td>${item.quantity}</td>
-                  <td>Rs. ${toMoney(item.unit_price)}</td>
-                  <td>Rs. ${toMoney(item.total)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <div class="summary">
-            <div class="summary-row">
-              <span>Subtotal:</span>
-              <span>Rs. ${toMoney(inv.subtotal)}</span>
-            </div>
-            <div class="summary-row">
-              <span>Discount:</span>
-              <span>-Rs. ${toMoney(inv.discount)}</span>
-            </div>
-            <div class="summary-row">
-              <span>Tax:</span>
-              <span>Rs. ${toMoney(inv.tax)}</span>
-            </div>
-            <div class="summary-row total">
-              <span>Total:</span>
-              <span>Rs. ${toMoney(inv.total)}</span>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
-    printWindow.document.write(htmlContent)
-    printWindow.document.close()
-    printWindow.print()
+  const handleSendEmail = async () => {
+    try {
+      setIsSendingEmail(true)
+      const result = await invoicesApi.sendEmail(invoice.id, emailRecipient || undefined)
+      toast.success(`Invoice email sent to ${result.sent_to}`)
+    } catch (error: any) {
+      toast.error("Failed to send invoice email: " + (error.message || "Unknown error"))
+    } finally {
+      setIsSendingEmail(false)
+    }
   }
 
   const getStatusBadge = (status: Invoice["status"]) => {
@@ -196,6 +133,41 @@ export function InvoiceViewDialog({ invoice, open, onOpenChange }: InvoiceViewDi
             <div className="flex justify-between text-lg">
               <span className="font-semibold text-zinc-900">Grand Total:</span>
               <span className="font-bold text-zinc-900">Rs. {toMoney(invoice.total)}</span>
+            </div>
+          </div>
+
+          {/* Email Invoice */}
+          <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-4">
+            <p className="font-semibold text-zinc-900">Email Invoice</p>
+            <p className="text-sm text-zinc-600">
+              Enter company email (optional). If empty, server default email will be used.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                value={emailRecipient}
+                onChange={(e) => setEmailRecipient(e.target.value)}
+                placeholder="company@example.com"
+                className="h-10"
+              />
+              <Button
+                type="button"
+                onClick={handleSendEmail}
+                disabled={isSendingEmail}
+                className="h-10"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>

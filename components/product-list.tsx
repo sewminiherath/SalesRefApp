@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, RefreshCcw, Pencil } from "lucide-react"
+import { Search, RefreshCcw, Pencil, Loader2 } from "lucide-react"
 import { itemsApi, type StockItem } from "@/lib/api/items"
 import { toast } from "sonner"
 
@@ -17,6 +17,7 @@ export function ProductList() {
   const [isLoading, setIsLoading] = useState(true)
   const [editing, setEditing] = useState<StockItem | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [openAt, setOpenAt] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
     item_code: "",
     item_name: "",
@@ -56,6 +57,7 @@ export function ProductList() {
 
   const openEdit = (item: StockItem) => {
     setEditing(item)
+    setOpenAt(Date.now())
     setEditForm({
       item_code: item.item_code,
       item_name: item.item_name,
@@ -76,7 +78,8 @@ export function ProductList() {
     }
     try {
       setIsSaving(true)
-      const updated = await itemsApi.update(editing.id, {
+      const nextImage = editForm.image.trim()
+      const payload: Omit<StockItem, "id"> = {
         item_code: editForm.item_code.trim(),
         item_name: editForm.item_name.trim(),
         category: editForm.category.trim() || "General",
@@ -84,15 +87,27 @@ export function ProductList() {
         quantity: Number(editForm.quantity) || 0,
         reorder_level: Number(editForm.reorder_level) || 0,
         description: editForm.description.trim(),
-        image: editForm.image.trim() || undefined,
-      })
+        image: nextImage || undefined,
+      }
+
+      // Avoid re-sending the same large base64 image on every save.
+      if ((editing.image || "") === nextImage) {
+        delete payload.image
+      }
+
+      const updated = await itemsApi.update(editing.id, payload)
       setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
       toast.success("Product updated")
       setEditing(null)
+      if (openAt) {
+        const seconds = ((Date.now() - openAt) / 1000).toFixed(1)
+        toast.message(`Saved in ${seconds}s`)
+      }
     } catch (error: any) {
       toast.error("Failed to update product: " + (error.message || "Unknown error"))
     } finally {
       setIsSaving(false)
+      setOpenAt(null)
     }
   }
 
@@ -185,12 +200,20 @@ export function ProductList() {
         )}
       </CardContent>
 
-      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditing(null)
+            setOpenAt(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg p-0 max-h-[90vh] overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto px-6 pb-4">
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
                 <Label>Item Code *</Label>
@@ -253,18 +276,37 @@ export function ProductList() {
               />
             </div>
             <div className="space-y-1">
-              <Label>Image URL</Label>
+              <Label>Image (URL or base64)</Label>
               <Input
                 value={editForm.image}
                 onChange={(e) => setEditForm((f) => ({ ...f, image: e.target.value }))}
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            {editForm.image ? (
+              <div className="space-y-1">
+                <Label>Preview</Label>
+                <img
+                  src={editForm.image}
+                  alt="Product preview"
+                  className="h-20 w-20 rounded border object-cover"
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="sticky bottom-0 border-t bg-white px-6 py-3">
+            <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditing(null)} disabled={isSaving}>
                 Cancel
               </Button>
               <Button onClick={saveEdit} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
               </Button>
             </div>
           </div>

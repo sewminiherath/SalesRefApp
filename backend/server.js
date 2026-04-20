@@ -94,6 +94,54 @@ async function sendInvoiceEmail(invoice) {
   }
 }
 
+async function sendInvoiceEmailToRecipient(invoice, recipientEmail) {
+  if (!mailTransport) {
+    throw new Error("Email not configured. Set SMTP_* environment variables.")
+  }
+
+  if (!recipientEmail) {
+    throw new Error("Recipient email is required.")
+  }
+
+  const recipient = String(recipientEmail).trim()
+  if (!recipient) {
+    throw new Error("Recipient email is required.")
+  }
+
+  const subject = `Invoice ${invoice.invoice_number} - Total Rs. ${invoice.total.toFixed(2)}`
+
+  const lines = (invoice.items || [])
+    .map(
+      (it) =>
+        `${it.item_name || ""} x ${it.quantity} @ Rs. ${it.unit_price?.toFixed?.(2) ?? it.unit_price} = Rs. ${it.line_total?.toFixed?.(2) ?? it.line_total}`
+    )
+    .join("\n")
+
+  const textBody = [
+    "Invoice details:",
+    "",
+    `Invoice: ${invoice.invoice_number}`,
+    `Date: ${invoice.date}`,
+    `Client: ${invoice.client_name || "N/A"}`,
+    "",
+    lines,
+    "",
+    `Subtotal: Rs. ${invoice.subtotal.toFixed(2)}`,
+    `Discount: Rs. ${invoice.discount.toFixed(2)}`,
+    `Tax: Rs. ${invoice.tax.toFixed(2)}`,
+    `Total: Rs. ${invoice.total.toFixed(2)}`,
+    "",
+    "E-Billing System",
+  ].join("\n")
+
+  await mailTransport.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: recipient,
+    subject,
+    text: textBody,
+  })
+}
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
@@ -226,6 +274,12 @@ app.put("/api/items/:id", authMiddleware, (req, res) => {
       return res.status(404).json({ error: "Item not found" });
     }
 
+    // Keep existing image when frontend doesn't send image field.
+    const nextImage =
+      Object.prototype.hasOwnProperty.call(data, "image")
+        ? data.image || null
+        : existing.image || null;
+
     const updated = db.updateItem(req.params.id, {
       item_code: data.item_code,
       item_name: data.item_name,
@@ -234,7 +288,7 @@ app.put("/api/items/:id", authMiddleware, (req, res) => {
       quantity: Number(data.quantity) || 0,
       reorder_level: Number(data.reorder_level) || 0,
       description: data.description || "",
-      image: data.image || null,
+      image: nextImage,
     });
     res.json(updated);
   } catch (err) {
@@ -254,6 +308,31 @@ app.get("/api/invoices/:id", authMiddleware, (req, res) => {
     return res.status(404).json({ error: "Invoice not found" });
   }
   res.json(invoice);
+});
+
+app.post("/api/invoices/:id/send-email", authMiddleware, async (req, res) => {
+  try {
+    const invoice = db.getInvoiceById(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+
+    const body = req.body || {};
+    const recipient =
+      (typeof body.email === "string" && body.email.trim()) ||
+      process.env.EMAIL_TO ||
+      process.env.EMAIL_FROM;
+
+    if (!recipient) {
+      return res.status(400).json({ error: "Recipient email is required." });
+    }
+
+    await sendInvoiceEmailToRecipient(invoice, recipient);
+    return res.json({ success: true, sent_to: recipient });
+  } catch (err) {
+    console.error("Failed to send invoice email manually", err);
+    return res.status(500).json({ error: err.message || "Failed to send email" });
+  }
 });
 
 app.post("/api/invoices", authMiddleware, (req, res) => {
