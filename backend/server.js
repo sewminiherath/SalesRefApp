@@ -16,21 +16,45 @@ const FAKE_TOKEN = "test-token";
 
 // Email transport (configure via environment variables)
 // Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
-let mailTransport = null;
 const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS) || 15000;
-if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS) {
-  mailTransport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: Number(process.env.SMTP_PORT) === 465,
+const SMTP_RETRY_COUNT = Math.max(1, Number(process.env.SMTP_RETRY_COUNT) || 2);
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = Number(process.env.SMTP_PORT || 0);
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const SMTP_REQUIRE_TLS = process.env.SMTP_REQUIRE_TLS === "true";
+const SMTP_IGNORE_TLS = process.env.SMTP_IGNORE_TLS === "true";
+
+function smtpConfigured() {
+  return Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+}
+
+function createTransport({ host, port, secure }) {
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    requireTLS: SMTP_REQUIRE_TLS,
+    ignoreTLS: SMTP_IGNORE_TLS,
     connectionTimeout: SMTP_TIMEOUT_MS,
     greetingTimeout: SMTP_TIMEOUT_MS,
     socketTimeout: SMTP_TIMEOUT_MS,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: SMTP_USER,
+      pass: SMTP_PASS,
     },
   });
+}
+
+function getCandidateTransportConfigs() {
+  if (!smtpConfigured()) return [];
+  const configs = [{ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465 }];
+  if (SMTP_PORT === 465) {
+    configs.push({ host: SMTP_HOST, port: 587, secure: false });
+  } else if (SMTP_PORT === 587) {
+    configs.push({ host: SMTP_HOST, port: 465, secure: true });
+  }
+  return configs;
 }
 
 function formatEmailError(err) {
@@ -48,8 +72,52 @@ function formatEmailError(err) {
   return msg || "Failed to send email";
 }
 
+function isTimeoutError(err) {
+  const msg = String(err?.message || "").toLowerCase();
+  return (
+    err?.code === "ETIMEDOUT" ||
+    msg.includes("timed out") ||
+    msg.includes("connection timeout")
+  );
+}
+
+async function sendMailWithFallback(mailOptions) {
+  if (!smtpConfigured()) {
+    throw new Error("Email not configured. Set SMTP_* environment variables.");
+  }
+
+  const candidates = getCandidateTransportConfigs();
+  let lastErr = null;
+
+  for (const cfg of candidates) {
+    const transport = createTransport(cfg);
+    for (let attempt = 1; attempt <= SMTP_RETRY_COUNT; attempt++) {
+      try {
+        await transport.sendMail(mailOptions);
+        if (attempt > 1 || cfg.port !== SMTP_PORT) {
+          console.log(
+            `SMTP send succeeded via ${cfg.host}:${cfg.port} secure=${cfg.secure} attempt ${attempt}`
+          );
+        }
+        return;
+      } catch (err) {
+        lastErr = err;
+        const timeoutLike = isTimeoutError(err);
+        console.warn(
+          `SMTP send failed via ${cfg.host}:${cfg.port} secure=${cfg.secure} attempt ${attempt}/${SMTP_RETRY_COUNT}: ${formatEmailError(err)}`
+        );
+        if (!timeoutLike) {
+          break;
+        }
+      }
+    }
+  }
+
+  throw lastErr || new Error("Failed to send email");
+}
+
 async function sendInvoiceEmail(invoice) {
-  if (!mailTransport) {
+  if (!smtpConfigured()) {
     console.log("Email not configured; skipping invoice email. Set SMTP_* env vars to enable.");
     return;
   }
@@ -106,7 +174,7 @@ async function sendInvoiceEmail(invoice) {
       mailOptions.bcc = companyCopy;
     }
 
-    await mailTransport.sendMail(mailOptions);
+    await sendMailWithFallback(mailOptions);
     console.log("Invoice email sent for", invoice.invoice_number, "to", primaryRecipient, "bcc:", companyCopy || "none");
   } catch (err) {
     console.error("Failed to send invoice email", formatEmailError(err), err);
@@ -114,7 +182,7 @@ async function sendInvoiceEmail(invoice) {
 }
 
 async function sendInvoiceEmailToRecipient(invoice, recipientEmail) {
-  if (!mailTransport) {
+  if (!smtpConfigured()) {
     throw new Error("Email not configured. Set SMTP_* environment variables.")
   }
 
@@ -153,7 +221,7 @@ async function sendInvoiceEmailToRecipient(invoice, recipientEmail) {
     "E-Billing System",
   ].join("\n")
 
-  await mailTransport.sendMail({
+  await sendMailWithFallback({
     from: process.env.EMAIL_FROM,
     to: recipient,
     subject,
@@ -517,17 +585,26 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Backend API running on http://localhost:${PORT}`);
   console.log(`Body limit: ${BODY_LIMIT / 1024 / 1024}MB`);
-  if (mailTransport) {
-    mailTransport
-      .verify()
-      .then(() => {
-        console.log(
-          `SMTP ready: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT} (timeout ${SMTP_TIMEOUT_MS}ms)`
-        );
+  if (smtpConfigured()) {
+    const candidates = getCandidateTransportConfigs();
+    Promise.all(
+      candidates.map(async (cfg) => {
+        const transport = createTransport(cfg);
+        try {
+          await transport.verify();
+          console.log(
+            `SMTP ready: ${cfg.host}:${cfg.port} secure=${cfg.secure} (timeout ${SMTP_TIMEOUT_MS}ms)`
+          );
+        } catch (err) {
+          console.error(
+            `SMTP verify failed for ${cfg.host}:${cfg.port} secure=${cfg.secure}:`,
+            formatEmailError(err)
+          );
+        }
       })
-      .catch((err) => {
-        console.error("SMTP verify failed:", formatEmailError(err), err);
-      });
+    ).catch(() => {
+      // no-op: each candidate failure is already logged above
+    });
   } else {
     console.log("SMTP not configured (set SMTP_* variables to enable invoice emails).");
   }
