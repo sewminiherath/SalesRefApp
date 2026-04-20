@@ -39,7 +39,18 @@ function smtpConfigured() {
   return Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
 }
 
-function createTransport({ host, port, secure }) {
+async function resolveIpv4Hosts(hostname) {
+  if (!hostname) return [];
+  try {
+    const records = await dns.promises.resolve4(hostname);
+    return Array.from(new Set(records));
+  } catch (err) {
+    console.warn(`SMTP IPv4 resolve failed for ${hostname}:`, err?.message || err);
+    return [];
+  }
+}
+
+function createTransport({ host, port, secure, servername }) {
   return nodemailer.createTransport({
     host,
     port,
@@ -53,6 +64,7 @@ function createTransport({ host, port, secure }) {
       user: SMTP_USER,
       pass: SMTP_PASS,
     },
+    tls: servername ? { servername } : undefined,
   });
 }
 
@@ -99,7 +111,28 @@ async function sendMailWithFallback(mailOptions) {
     throw new Error("Email not configured. Set SMTP_* environment variables.");
   }
 
-  const candidates = getCandidateTransportConfigs();
+  const baseCandidates = getCandidateTransportConfigs();
+  const ipv4Hosts = await resolveIpv4Hosts(SMTP_HOST);
+  const candidates = [];
+  for (const cfg of baseCandidates) {
+    if (ipv4Hosts.length > 0) {
+      for (const ip of ipv4Hosts) {
+        candidates.push({
+          host: ip,
+          port: cfg.port,
+          secure: cfg.secure,
+          servername: SMTP_HOST,
+        });
+      }
+    }
+    candidates.push({
+      host: cfg.host,
+      port: cfg.port,
+      secure: cfg.secure,
+      servername: undefined,
+    });
+  }
+
   let lastErr = null;
 
   for (const cfg of candidates) {
@@ -592,17 +625,31 @@ app.listen(PORT, () => {
     const candidates = getCandidateTransportConfigs();
     Promise.all(
       candidates.map(async (cfg) => {
-        const transport = createTransport(cfg);
-        try {
-          await transport.verify();
-          console.log(
-            `SMTP ready: ${cfg.host}:${cfg.port} secure=${cfg.secure} (timeout ${SMTP_TIMEOUT_MS}ms)`
-          );
-        } catch (err) {
-          console.error(
-            `SMTP verify failed for ${cfg.host}:${cfg.port} secure=${cfg.secure}:`,
-            formatEmailError(err)
-          );
+        const ips = await resolveIpv4Hosts(SMTP_HOST);
+        const verifyTargets = [
+          ...ips.map((ip) => ({
+            host: ip,
+            port: cfg.port,
+            secure: cfg.secure,
+            servername: SMTP_HOST,
+          })),
+          { host: cfg.host, port: cfg.port, secure: cfg.secure, servername: undefined },
+        ];
+
+        for (const target of verifyTargets) {
+          const transport = createTransport(target);
+          try {
+            await transport.verify();
+            console.log(
+              `SMTP ready: ${target.host}:${target.port} secure=${target.secure} (timeout ${SMTP_TIMEOUT_MS}ms)`
+            );
+            break;
+          } catch (err) {
+            console.error(
+              `SMTP verify failed for ${target.host}:${target.port} secure=${target.secure}:`,
+              formatEmailError(err)
+            );
+          }
         }
       })
     ).catch(() => {
