@@ -6,6 +6,7 @@ const db = require("./database");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const DEFAULT_COMPANY_EMAIL = "regalhardwaretools@gmail.com";
 
 // Railway and similar hosts can fail outbound IPv6 SMTP routes.
 // Prefer IPv4 DNS results first to avoid ENETUNREACH on IPv6-only addresses.
@@ -135,20 +136,13 @@ async function sendInvoiceEmail(invoice) {
   }
 
   const client = db.getClientById(invoice.client_id);
+  // Always prioritize company inbox for automatic invoice emails.
   const primaryRecipient =
-    (client && client.email) || process.env.EMAIL_TO || process.env.EMAIL_FROM;
+    process.env.EMAIL_TO || DEFAULT_COMPANY_EMAIL || process.env.EMAIL_FROM;
   if (!primaryRecipient) {
     console.log("No recipient email found for invoice", invoice.invoice_number);
     return;
   }
-
-  // Optional company copy: if EMAIL_TO is set and is different from the
-  // primary recipient, send a BCC to that address so the company inbox
-  // always receives a copy of every invoice email.
-  const companyCopy =
-    process.env.EMAIL_TO && process.env.EMAIL_TO !== primaryRecipient
-      ? process.env.EMAIL_TO
-      : null;
 
   const subject = `Invoice ${invoice.invoice_number} - Total Rs. ${invoice.total.toFixed(2)}`;
 
@@ -182,12 +176,8 @@ async function sendInvoiceEmail(invoice) {
       text: textBody,
     };
 
-    if (companyCopy) {
-      mailOptions.bcc = companyCopy;
-    }
-
     await sendMailWithFallback(mailOptions);
-    console.log("Invoice email sent for", invoice.invoice_number, "to", primaryRecipient, "bcc:", companyCopy || "none");
+    console.log("Invoice email sent for", invoice.invoice_number, "to", primaryRecipient);
   } catch (err) {
     console.error("Failed to send invoice email", formatEmailError(err), err);
   }
@@ -420,6 +410,7 @@ app.post("/api/invoices/:id/send-email", authMiddleware, async (req, res) => {
     const recipient =
       (typeof body.email === "string" && body.email.trim()) ||
       process.env.EMAIL_TO ||
+      DEFAULT_COMPANY_EMAIL ||
       process.env.EMAIL_FROM;
 
     if (!recipient) {
