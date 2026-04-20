@@ -1,10 +1,19 @@
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const dns = require("dns");
 const db = require("./database");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Railway and similar hosts can fail outbound IPv6 SMTP routes.
+// Prefer IPv4 DNS results first to avoid ENETUNREACH on IPv6-only addresses.
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch (err) {
+  console.warn("Could not set DNS result order:", err?.message || err);
+}
 
 app.use(cors());
 // Allow larger payloads for product images (base64) - 100MB in bytes
@@ -59,6 +68,9 @@ function getCandidateTransportConfigs() {
 
 function formatEmailError(err) {
   const msg = String(err?.message || "");
+  if (err?.code === "ENETUNREACH" || msg.includes("ENETUNREACH")) {
+    return "SMTP network route unavailable (IPv6 unreachable). Retrying with IPv4 preference.";
+  }
   if (
     err?.code === "ETIMEDOUT" ||
     msg.toLowerCase().includes("timed out") ||
