@@ -17,16 +17,35 @@ const FAKE_TOKEN = "test-token";
 // Email transport (configure via environment variables)
 // Required: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
 let mailTransport = null;
+const SMTP_TIMEOUT_MS = Number(process.env.SMTP_TIMEOUT_MS) || 15000;
 if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS) {
   mailTransport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
     secure: Number(process.env.SMTP_PORT) === 465,
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   });
+}
+
+function formatEmailError(err) {
+  const msg = String(err?.message || "");
+  if (
+    err?.code === "ETIMEDOUT" ||
+    msg.toLowerCase().includes("timed out") ||
+    msg.toLowerCase().includes("connection timeout")
+  ) {
+    return "Email server connection timed out. Check SMTP host/port and provider settings.";
+  }
+  if (err?.code === "EAUTH") {
+    return "SMTP authentication failed. Check SMTP_USER/SMTP_PASS (or app password).";
+  }
+  return msg || "Failed to send email";
 }
 
 async function sendInvoiceEmail(invoice) {
@@ -90,7 +109,7 @@ async function sendInvoiceEmail(invoice) {
     await mailTransport.sendMail(mailOptions);
     console.log("Invoice email sent for", invoice.invoice_number, "to", primaryRecipient, "bcc:", companyCopy || "none");
   } catch (err) {
-    console.error("Failed to send invoice email", err);
+    console.error("Failed to send invoice email", formatEmailError(err), err);
   }
 }
 
@@ -330,8 +349,9 @@ app.post("/api/invoices/:id/send-email", authMiddleware, async (req, res) => {
     await sendInvoiceEmailToRecipient(invoice, recipient);
     return res.json({ success: true, sent_to: recipient });
   } catch (err) {
-    console.error("Failed to send invoice email manually", err);
-    return res.status(500).json({ error: err.message || "Failed to send email" });
+    const errorMessage = formatEmailError(err);
+    console.error("Failed to send invoice email manually", errorMessage, err);
+    return res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -497,6 +517,20 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Backend API running on http://localhost:${PORT}`);
   console.log(`Body limit: ${BODY_LIMIT / 1024 / 1024}MB`);
+  if (mailTransport) {
+    mailTransport
+      .verify()
+      .then(() => {
+        console.log(
+          `SMTP ready: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT} (timeout ${SMTP_TIMEOUT_MS}ms)`
+        );
+      })
+      .catch((err) => {
+        console.error("SMTP verify failed:", formatEmailError(err), err);
+      });
+  } else {
+    console.log("SMTP not configured (set SMTP_* variables to enable invoice emails).");
+  }
 });
 
 
