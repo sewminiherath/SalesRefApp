@@ -163,75 +163,66 @@ function isTimeoutError(err) {
 }
 
 async function sendMailWithFallback(mailOptions) {
-  if (!smtpConfigured()) {
-    throw new Error("Email not configured. Set SMTP_* environment variables.");
-  }
-
-  const baseCandidates = getCandidateTransportConfigs();
-  const ipv4Hosts = await resolveIpv4Hosts(SMTP_HOST);
-  const candidates = [];
-  for (const cfg of baseCandidates) {
-    if (ipv4Hosts.length > 0) {
-      for (const ip of ipv4Hosts) {
-        candidates.push({
-          host: ip,
-          port: cfg.port,
-          secure: cfg.secure,
-          servername: SMTP_HOST,
-        });
-      }
-    }
-    candidates.push({
-      host: cfg.host,
-      port: cfg.port,
-      secure: cfg.secure,
-      servername: undefined,
-    });
-  }
-
   let lastErr = null;
 
-  for (const cfg of candidates) {
-    const transport = createTransport(cfg);
-    for (let attempt = 1; attempt <= SMTP_RETRY_COUNT; attempt++) {
-      try {
-        await transport.sendMail(mailOptions);
-        if (attempt > 1 || cfg.port !== SMTP_PORT) {
-          console.log(
-            `SMTP send succeeded via ${cfg.host}:${cfg.port} secure=${cfg.secure} attempt ${attempt}`
-          );
+  if (smtpConfigured()) {
+    const baseCandidates = getCandidateTransportConfigs();
+    const ipv4Hosts = await resolveIpv4Hosts(SMTP_HOST);
+    const candidates = [];
+    for (const cfg of baseCandidates) {
+      if (ipv4Hosts.length > 0) {
+        for (const ip of ipv4Hosts) {
+          candidates.push({
+            host: ip,
+            port: cfg.port,
+            secure: cfg.secure,
+            servername: SMTP_HOST,
+          });
         }
-        return;
-      } catch (err) {
-        lastErr = err;
-        const timeoutLike = isTimeoutError(err);
-        console.warn(
-          `SMTP send failed via ${cfg.host}:${cfg.port} secure=${cfg.secure} attempt ${attempt}/${SMTP_RETRY_COUNT}: ${formatEmailError(err)}`
-        );
-        if (!timeoutLike) {
-          break;
+      }
+      candidates.push({
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.secure,
+        servername: undefined,
+      });
+    }
+
+    for (const cfg of candidates) {
+      const transport = createTransport(cfg);
+      for (let attempt = 1; attempt <= SMTP_RETRY_COUNT; attempt++) {
+        try {
+          await transport.sendMail(mailOptions);
+          if (attempt > 1 || cfg.port !== SMTP_PORT) {
+            console.log(
+              `SMTP send succeeded via ${cfg.host}:${cfg.port} secure=${cfg.secure} attempt ${attempt}`
+            );
+          }
+          return;
+        } catch (err) {
+          lastErr = err;
+          const timeoutLike = isTimeoutError(err);
+          console.warn(
+            `SMTP send failed via ${cfg.host}:${cfg.port} secure=${cfg.secure} attempt ${attempt}/${SMTP_RETRY_COUNT}: ${formatEmailError(err)}`
+          );
+          if (!timeoutLike) break;
         }
       }
     }
   }
 
-  // Final fallback: HTTPS email API (avoids blocked SMTP routes)
   if (RESEND_API_KEY) {
-    try {
-      await sendWithResend(mailOptions.to, mailOptions.subject, mailOptions.text);
-      console.log(`Email sent via Resend fallback to ${mailOptions.to}`);
-      return;
-    } catch (apiErr) {
-      console.error("Resend fallback failed:", formatEmailError(apiErr), apiErr);
-    }
+    await sendWithResend(mailOptions.to, mailOptions.subject, mailOptions.text);
+    console.log(`Email sent via Resend fallback to ${mailOptions.to}`);
+    return;
   }
 
-  throw lastErr || new Error("Failed to send email");
+  throw lastErr || new Error("Email not configured. Set SMTP_* or RESEND_API_KEY.");
 }
 
 async function sendInvoiceEmail(invoice) {
-  if (!smtpConfigured()) {
-    console.log("Email not configured; skipping invoice email. Set SMTP_* env vars to enable.");
+  if (!smtpConfigured() && !RESEND_API_KEY) {
+    console.log("Email not configured; skipping invoice email. Set SMTP_* or RESEND_API_KEY.");
     return;
   }
 
@@ -262,8 +253,8 @@ async function sendInvoiceEmail(invoice) {
 }
 
 async function sendInvoiceEmailToRecipient(invoice, recipientEmail) {
-  if (!smtpConfigured()) {
-    throw new Error("Email not configured. Set SMTP_* environment variables.")
+  if (!smtpConfigured() && !RESEND_API_KEY) {
+    throw new Error("Email not configured. Set SMTP_* or RESEND_API_KEY.")
   }
 
   if (!recipientEmail) {
