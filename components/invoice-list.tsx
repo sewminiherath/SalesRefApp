@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Eye, Loader2, Mail } from "lucide-react"
+import { Search, Eye, Loader2, Mail, Trash2 } from "lucide-react"
 import { invoicesApi, type Invoice } from "@/lib/api/invoices"
 import { toast } from "sonner"
 import { InvoiceViewDialog } from "@/components/invoice-view-dialog"
@@ -21,6 +21,7 @@ export function InvoiceList() {
   const [isLoading, setIsLoading] = useState(true)
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null)
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
 
   useEffect(() => {
     loadInvoices()
@@ -59,6 +60,29 @@ export function InvoiceList() {
       )
     } finally {
       setSendingInvoiceId(null)
+    }
+  }
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    const confirmed = window.confirm(
+      `Delete invoice ${invoice.invoice_number}? This action cannot be undone.`
+    )
+    if (!confirmed) return
+
+    try {
+      setDeletingInvoiceId(invoice.id)
+      await invoicesApi.remove(invoice.id)
+      setInvoices((prev) => prev.filter((i) => i.id !== invoice.id))
+      if (viewingInvoice?.id === invoice.id) {
+        setViewingInvoice(null)
+      }
+      toast.success(`Invoice ${invoice.invoice_number} deleted`)
+    } catch (error: any) {
+      toast.error(
+        `Failed to delete ${invoice.invoice_number}: ` + (error.message || "Unknown error")
+      )
+    } finally {
+      setDeletingInvoiceId(null)
     }
   }
 
@@ -164,6 +188,19 @@ export function InvoiceList() {
                       className="h-12 w-12 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
                     >
                       <Eye className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleDeleteInvoice(invoice)}
+                      disabled={deletingInvoiceId === invoice.id}
+                      className="h-12 w-12 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    >
+                      {deletingInvoiceId === invoice.id ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      )}
                     </Button>
                   </div>
                 </div>

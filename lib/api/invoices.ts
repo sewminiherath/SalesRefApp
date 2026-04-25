@@ -66,5 +66,11 @@ export const invoicesApi = {
       body: JSON.stringify(email ? { email } : {}),
     })
   },
+
+  remove: async (id: string): Promise<void> => {
+    await apiRequest<{ success: boolean }>(`/invoices/${id}`, {
+      method: "DELETE",
+    })
+  },
 }
 

@@ -12,6 +12,7 @@ import { FileText, DollarSign, TrendingUp, Download, Loader2 } from "lucide-reac
 import { BackButton } from "@/components/ui/back-button"
 import { invoicesApi, type Invoice } from "@/lib/api/invoices"
 import { itemsApi, type StockItem } from "@/lib/api/items"
+import { clientsApi, type Client } from "@/lib/api/clients"
 import { toast } from "sonner"
 
 export default function ReportsPage() {
@@ -19,8 +20,10 @@ export default function ReportsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [items, setItems] = useState<StockItem[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedClientId, setSelectedClientId] = useState<string>("all")
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0],
@@ -48,8 +51,10 @@ export default function ReportsPage() {
       setIsLoading(true)
       const data = await invoicesApi.getAll()
       const itemsData = await itemsApi.getAll()
+      const clientsData = await clientsApi.getAll()
       setInvoices(data)
       setItems(itemsData)
+      setClients(clientsData)
     } catch (error: any) {
       toast.error("Failed to load invoices: " + (error.message || "Unknown error"))
     } finally {
@@ -117,6 +122,31 @@ export default function ReportsPage() {
       .sort((a, b) => b.sold_quantity - a.sold_quantity)
   }
 
+  const getCustomerSummary = () => {
+    if (selectedClientId === "all") {
+      return {
+        paidBills: 0,
+        creditBills: 0,
+        totalCreditAmount: 0,
+        invoices: [] as Invoice[],
+      }
+    }
+
+    const clientInvoices = invoices
+      .filter((inv) => inv.client_id === selectedClientId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const paidBills = clientInvoices.filter((inv) => inv.status === "paid").length
+    const creditInvoices = clientInvoices.filter((inv) => inv.status === "credit")
+    const totalCreditAmount = creditInvoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)
+
+    return {
+      paidBills,
+      creditBills: creditInvoices.length,
+      totalCreditAmount,
+      invoices: clientInvoices,
+    }
+  }
+
   const exportToCSV = () => {
     const headers = ["Invoice Number", "Date", "Client", "Subtotal", "Discount", "Tax", "Total", "Status"]
     const rows = filteredInvoices.map((inv) => [
@@ -159,6 +189,7 @@ export default function ReportsPage() {
 
   const stats = calculateStats()
   const productSummary = getProductSummary()
+  const customerSummary = getCustomerSummary()
 
   return (
     <div className="min-h-screen bg-white p-4">
@@ -334,6 +365,73 @@ export default function ReportsPage() {
                   ))}
                 </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Customer Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer Summary</CardTitle>
+            <CardDescription>
+              Paid bills, credit bills, total credit amount, and all invoices of the selected customer
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Customer</Label>
+              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choose customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Select customer</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name} ({client.client_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedClientId !== "all" ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-sm text-muted-foreground">Paid Bills</p>
+                    <p className="text-2xl font-semibold">{customerSummary.paidBills}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-sm text-muted-foreground">Credit Bills</p>
+                    <p className="text-2xl font-semibold">{customerSummary.creditBills}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-sm text-muted-foreground">Total Credit Amount</p>
+                    <p className="text-2xl font-semibold">Rs. {customerSummary.totalCreditAmount.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium">All Invoices</p>
+                  {customerSummary.invoices.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No invoices found for this customer.</p>
+                  ) : (
+                    <div className="max-h-80 space-y-2 overflow-y-auto">
+                      {customerSummary.invoices.map((invoice) => (
+                        <div key={invoice.id} className="grid grid-cols-4 gap-2 rounded-lg border p-2 text-sm">
+                          <p className="font-medium">{invoice.invoice_number}</p>
+                          <p>{new Date(invoice.date).toLocaleDateString()}</p>
+                          <p className="capitalize">{invoice.status}</p>
+                          <p className="text-right font-medium">Rs. {Number(invoice.total || 0).toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Select a customer to view summary.</p>
             )}
           </CardContent>
         </Card>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, RefreshCcw, Pencil, Loader2 } from "lucide-react"
+import { Search, RefreshCcw, Pencil, Loader2, Trash2 } from "lucide-react"
 import { itemsApi, type StockItem } from "@/lib/api/items"
 import { toast } from "sonner"
 
@@ -17,6 +17,7 @@ export function ProductList() {
   const [isLoading, setIsLoading] = useState(true)
   const [editing, setEditing] = useState<StockItem | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null)
   const [openAt, setOpenAt] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
     item_code: "",
@@ -111,6 +112,24 @@ export function ProductList() {
     }
   }
 
+  const deleteItem = async (item: StockItem) => {
+    const confirmed = window.confirm(
+      `Delete product "${item.item_name}" (${item.item_code})? This action cannot be undone.`
+    )
+    if (!confirmed) return
+
+    try {
+      setDeletingItemId(item.id)
+      await itemsApi.remove(item.id)
+      setItems((prev) => prev.filter((i) => i.id !== item.id))
+      toast.success("Product deleted")
+    } catch (error: any) {
+      toast.error("Failed to delete product: " + (error.message || "Unknown error"))
+    } finally {
+      setDeletingItemId(null)
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
@@ -192,6 +211,19 @@ export function ProductList() {
                     onClick={() => openEdit(item)}
                   >
                     <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => deleteItem(item)}
+                    disabled={deletingItemId === item.id}
+                  >
+                    {deletingItemId === item.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    )}
                   </Button>
                 </div>
               </div>

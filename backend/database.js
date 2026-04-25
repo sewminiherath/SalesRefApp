@@ -313,6 +313,10 @@ module.exports = {
     const row = db.prepare("SELECT * FROM items WHERE id = ?").get(id);
     return row ? rowToItem(row) : null;
   },
+  deleteItem: (id) => {
+    const result = db.prepare("DELETE FROM items WHERE id = ?").run(id);
+    return result.changes > 0;
+  },
   decreaseItemQuantity: (id, quantityToDecrease) => {
     const row = db.prepare("SELECT * FROM items WHERE id = ?").get(id);
     if (!row) return null;
@@ -329,6 +333,10 @@ module.exports = {
   getInvoiceById: (id) => {
     const row = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
     return row ? rowToInvoice(row) : null;
+  },
+  deleteInvoice: (id) => {
+    const result = db.prepare("DELETE FROM invoices WHERE id = ?").run(id);
+    return result.changes > 0;
   },
   getInvoiceCount: () => db.prepare("SELECT COUNT(*) as n FROM invoices").get().n,
   insertInvoice: (invoice) => {

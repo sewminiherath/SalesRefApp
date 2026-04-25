@@ -431,6 +431,23 @@ app.put("/api/items/:id", authMiddleware, (req, res) => {
   }
 });
 
+app.delete("/api/items/:id", authMiddleware, (req, res) => {
+  try {
+    const existing = db.getItemById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+    const deleted = db.deleteItem(req.params.id);
+    if (!deleted) {
+      return res.status(500).json({ error: "Failed to delete item" });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting product:", err);
+    return res.status(500).json({ error: err.message || "Failed to delete product" });
+  }
+});
+
 // Invoices
 app.get("/api/invoices", authMiddleware, (req, res) => {
   res.json(db.getInvoices());
@@ -468,6 +485,23 @@ app.post("/api/invoices/:id/send-email", authMiddleware, async (req, res) => {
     const errorMessage = formatEmailError(err);
     console.error("Failed to send invoice email manually", errorMessage, err);
     return res.status(500).json({ error: errorMessage });
+  }
+});
+
+app.delete("/api/invoices/:id", authMiddleware, (req, res) => {
+  try {
+    const invoice = db.getInvoiceById(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    const deleted = db.deleteInvoice(req.params.id);
+    if (!deleted) {
+      return res.status(500).json({ error: "Failed to delete invoice" });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting invoice:", err);
+    return res.status(500).json({ error: err.message || "Failed to delete invoice" });
   }
 });
 

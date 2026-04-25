@@ -64,5 +64,11 @@ export const itemsApi = {
       image: data.image || undefined,
     }
   },
+
+  remove: async (id: string): Promise<void> => {
+    await apiRequest<{ success: boolean }>(`/items/${id}`, {
+      method: "DELETE",
+    })
+  },
 }
 
