@@ -25,6 +25,8 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedClientId, setSelectedClientId] = useState<string>("all")
   const [selectedProductId, setSelectedProductId] = useState<string>("all")
+  const [customerSearch, setCustomerSearch] = useState("")
+  const [productSearch, setProductSearch] = useState("")
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0],
@@ -192,10 +194,24 @@ export default function ReportsPage() {
 
   const stats = calculateStats()
   const productSummary = getProductSummary()
+  const filteredProductOptions = productSummary.filter((row) => {
+    if (!productSearch.trim()) return true
+    const q = productSearch.trim().toLowerCase()
+    return row.item_name.toLowerCase().includes(q) || row.item_code.toLowerCase().includes(q)
+  })
   const visibleProductSummary =
     selectedProductId === "all"
       ? productSummary
       : productSummary.filter((row) => row.id === selectedProductId)
+  const filteredCustomerOptions = clients.filter((client) => {
+    if (!customerSearch.trim()) return true
+    const q = customerSearch.trim().toLowerCase()
+    return (
+      client.name.toLowerCase().includes(q) ||
+      client.client_id.toLowerCase().includes(q) ||
+      (client.email || "").toLowerCase().includes(q)
+    )
+  })
   const customerSummary = getCustomerSummary()
 
   return (
@@ -354,13 +370,19 @@ export default function ReportsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Select Product</Label>
+              <Input
+                placeholder="Search product by name or code..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="h-10"
+              />
               <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose product" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Products</SelectItem>
-                  {productSummary.map((row) => (
+                  {filteredProductOptions.map((row) => (
                     <SelectItem key={row.id} value={row.id}>
                       {row.item_name} ({row.item_code})
                     </SelectItem>
@@ -406,13 +428,19 @@ export default function ReportsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Select Customer</Label>
+              <Input
+                placeholder="Search customer by name or ID..."
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                className="h-10"
+              />
               <Select value={selectedClientId} onValueChange={setSelectedClientId}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose customer" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Select customer</SelectItem>
-                  {clients.map((client) => (
+                  {filteredCustomerOptions.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name} ({client.client_id})
                     </SelectItem>
