@@ -495,6 +495,29 @@ app.post("/api/invoices", authMiddleware, (req, res) => {
     };
   });
 
+  // Server-side stock validation and stock deduction.
+  // This keeps remaining quantity accurate even if frontend checks are bypassed.
+  for (const line of data.items || []) {
+    const stockItem = itemsList.find((i) => i.id === line.item_id);
+    const qty = Number(line.quantity) || 0;
+    if (!stockItem) {
+      return res.status(400).json({ error: `Item not found: ${line.item_id}` });
+    }
+    if (qty <= 0) {
+      return res.status(400).json({ error: `Invalid quantity for item ${stockItem.item_name}` });
+    }
+    if ((Number(stockItem.quantity) || 0) < qty) {
+      return res
+        .status(400)
+        .json({ error: `Insufficient stock for ${stockItem.item_name}. Available: ${stockItem.quantity}` });
+    }
+  }
+
+  for (const line of data.items || []) {
+    const qty = Number(line.quantity) || 0;
+    db.decreaseItemQuantity(line.item_id, qty);
+  }
+
   const subtotal = itemsWithDetails.reduce((sum, it) => sum + (it.line_total || 0), 0);
   const discount = data.discount || 0;
   const tax = data.tax || 0;

@@ -11,12 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileText, DollarSign, TrendingUp, Download, Loader2 } from "lucide-react"
 import { BackButton } from "@/components/ui/back-button"
 import { invoicesApi, type Invoice } from "@/lib/api/invoices"
+import { itemsApi, type StockItem } from "@/lib/api/items"
 import { toast } from "sonner"
 
 export default function ReportsPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [items, setItems] = useState<StockItem[]>([])
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dateRange, setDateRange] = useState({
@@ -45,7 +47,9 @@ export default function ReportsPage() {
     try {
       setIsLoading(true)
       const data = await invoicesApi.getAll()
+      const itemsData = await itemsApi.getAll()
       setInvoices(data)
+      setItems(itemsData)
     } catch (error: any) {
       toast.error("Failed to load invoices: " + (error.message || "Unknown error"))
     } finally {
@@ -90,6 +94,29 @@ export default function ReportsPage() {
     }
   }
 
+  const getProductSummary = () => {
+    const soldByItemId = new Map<string, number>()
+    for (const inv of filteredInvoices) {
+      for (const line of inv.items || []) {
+        const itemId = String(line.item_id || "")
+        if (!itemId) continue
+        const qty = Number(line.quantity) || 0
+        soldByItemId.set(itemId, (soldByItemId.get(itemId) || 0) + qty)
+      }
+    }
+
+    return items
+      .map((item) => ({
+        id: item.id,
+        item_code: item.item_code,
+        item_name: item.item_name,
+        unit_price: Number(item.unit_price) || 0,
+        sold_quantity: soldByItemId.get(item.id) || 0,
+        remained_quantity: Number(item.quantity) || 0,
+      }))
+      .sort((a, b) => b.sold_quantity - a.sold_quantity)
+  }
+
   const exportToCSV = () => {
     const headers = ["Invoice Number", "Date", "Client", "Subtotal", "Discount", "Tax", "Total", "Status"]
     const rows = filteredInvoices.map((inv) => [
@@ -131,6 +158,7 @@ export default function ReportsPage() {
   }
 
   const stats = calculateStats()
+  const productSummary = getProductSummary()
 
   return (
     <div className="min-h-screen bg-white p-4">
@@ -269,6 +297,42 @@ export default function ReportsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Product Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Summary</CardTitle>
+            <CardDescription>
+              Item code, name, price, sold quantity, and remaining quantity
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {productSummary.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No product data found</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-5 gap-2 rounded-lg border bg-zinc-50 p-2 text-sm font-semibold">
+                  <p>Item Code</p>
+                  <p>Item Name</p>
+                  <p className="text-right">Price</p>
+                  <p className="text-right">Sold Qty</p>
+                  <p className="text-right">Remain Qty</p>
+                </div>
+                <div className="max-h-96 space-y-2 overflow-y-auto">
+                  {productSummary.map((row) => (
+                    <div key={row.id} className="grid grid-cols-5 gap-2 rounded-lg border p-2 text-sm">
+                      <p>{row.item_code}</p>
+                      <p>{row.item_name}</p>
+                      <p className="text-right">Rs. {row.unit_price.toFixed(2)}</p>
+                      <p className="text-right">{row.sold_quantity}</p>
+                      <p className="text-right">{row.remained_quantity}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

@@ -25,9 +25,11 @@ export function CreateInvoiceForm() {
   const [selectedClient, setSelectedClient] = useState("")
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([])
   const [discountPercent, setDiscountPercent] = useState("0")
-  const [taxRate, setTaxRate] = useState("9")
+  const [taxRate, setTaxRate] = useState("0")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "cheque" | "card" | "transfer" | "">("")
+  const [paymentMethod, setPaymentMethod] = useState<
+    "cash" | "cheque" | "credit" | "card" | "transfer" | ""
+  >("")
   const [cashAmount, setCashAmount] = useState("")
   const [chequeNumber, setChequeNumber] = useState("")
   const [chequeBank, setChequeBank] = useState("")
@@ -42,6 +44,13 @@ export function CreateInvoiceForm() {
   const [currentQuantity, setCurrentQuantity] = useState("1")
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+  const [customerSummary, setCustomerSummary] = useState({
+    paidBills: 0,
+    creditBills: 0,
+    totalCreditAmount: 0,
+  })
+  const [customerInvoices, setCustomerInvoices] = useState<any[]>([])
 
   useEffect(() => {
     loadData()
@@ -68,6 +77,50 @@ export function CreateInvoiceForm() {
       itemsApi.getAll().then(setItems)
     }
   }, [itemSearch])
+
+  useEffect(() => {
+    const loadCustomerSummary = async () => {
+      if (!selectedClient) {
+        setCustomerSummary({
+          paidBills: 0,
+          creditBills: 0,
+          totalCreditAmount: 0,
+        })
+        setCustomerInvoices([])
+        return
+      }
+
+      try {
+        setIsSummaryLoading(true)
+        const allInvoices = await invoicesApi.getAll()
+        const customerInvoices = allInvoices.filter((invoice) => invoice.client_id === selectedClient)
+        const paidBills = customerInvoices.filter((invoice) => invoice.status === "paid").length
+        const creditInvoices = customerInvoices.filter((invoice) => invoice.status === "credit")
+        const totalCreditAmount = creditInvoices.reduce(
+          (sum, invoice) => sum + (Number(invoice.total) || 0),
+          0
+        )
+
+        setCustomerSummary({
+          paidBills,
+          creditBills: creditInvoices.length,
+          totalCreditAmount,
+        })
+        setCustomerInvoices(customerInvoices)
+      } catch {
+        setCustomerSummary({
+          paidBills: 0,
+          creditBills: 0,
+          totalCreditAmount: 0,
+        })
+        setCustomerInvoices([])
+      } finally {
+        setIsSummaryLoading(false)
+      }
+    }
+
+    loadCustomerSummary()
+  }, [selectedClient])
 
   const loadData = async () => {
     try {
@@ -120,15 +173,16 @@ export function CreateInvoiceForm() {
   const taxAmount = ((subtotal - discountAmount) * (Number.parseFloat(taxRate) || 0)) / 100
   const grandTotal = subtotal - discountAmount + taxAmount
 
-  // Keep cash / cheque amounts in sync with total by default
+  // Default payment amounts when method changes.
+  // Cash should always start from 0 and remain user-editable.
   useEffect(() => {
-    if (paymentMethod === "cash" && !cashAmount) {
-      setCashAmount(grandTotal.toFixed(2))
+    if (paymentMethod === "cash") {
+      setCashAmount("0")
     }
     if (paymentMethod === "cheque" && !chequeAmount) {
       setChequeAmount(grandTotal.toFixed(2))
     }
-  }, [paymentMethod, grandTotal, cashAmount, chequeAmount])
+  }, [paymentMethod, grandTotal, chequeAmount])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -177,9 +231,11 @@ export function CreateInvoiceForm() {
         discount: discountAmount,
         tax: taxAmount,
         status:
-          paymentMethod === "cash" && cash >= grandTotal
-            ? "paid"
-            : "pending",
+          paymentMethod === "credit"
+            ? "credit"
+            : paymentMethod === "cash" && cash >= grandTotal
+              ? "paid"
+              : "pending",
         date: selectedDate,
         payment_method: paymentMethod,
         cash_amount: paymentMethod === "cash" ? cash : undefined,
@@ -196,7 +252,7 @@ export function CreateInvoiceForm() {
       setSelectedClient("")
       setInvoiceItems([])
       setDiscountPercent("0")
-      setTaxRate("9")
+      setTaxRate("0")
       setSelectedDate(new Date().toISOString().split("T")[0])
       setPaymentMethod("")
       setCashAmount("")
@@ -284,6 +340,51 @@ export function CreateInvoiceForm() {
               <div className="p-3 rounded-lg border border-zinc-200 bg-white text-sm">
                 <p><strong>Email:</strong> {selectedClientData.email || "N/A"}</p>
                 <p><strong>Phone:</strong> {selectedClientData.phone || "N/A"}</p>
+              </div>
+            )}
+            {selectedClient && (
+              <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                <p className="mb-2 font-semibold">Customer Summary</p>
+                {isSummaryLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading summary...</p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid gap-2 text-sm md:grid-cols-3">
+                      <div className="rounded border border-zinc-200 p-2">
+                        <p className="text-muted-foreground">Paid Bills</p>
+                        <p className="text-lg font-semibold">{customerSummary.paidBills}</p>
+                      </div>
+                      <div className="rounded border border-zinc-200 p-2">
+                        <p className="text-muted-foreground">Credit Bills</p>
+                        <p className="text-lg font-semibold">{customerSummary.creditBills}</p>
+                      </div>
+                      <div className="rounded border border-zinc-200 p-2">
+                        <p className="text-muted-foreground">Total Credit Amount</p>
+                        <p className="text-lg font-semibold">Rs. {customerSummary.totalCreditAmount.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-2 font-medium">All Customer Invoices</p>
+                      {customerInvoices.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No previous invoices found.</p>
+                      ) : (
+                        <div className="max-h-52 space-y-2 overflow-y-auto">
+                          {customerInvoices.map((invoice) => (
+                            <div
+                              key={invoice.id}
+                              className="grid grid-cols-4 gap-2 rounded border border-zinc-200 p-2 text-sm"
+                            >
+                              <p className="font-medium">{invoice.invoice_number}</p>
+                              <p>{new Date(invoice.date).toLocaleDateString()}</p>
+                              <p className="capitalize">{invoice.status}</p>
+                              <p className="text-right font-medium">Rs. {Number(invoice.total || 0).toFixed(2)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -439,6 +540,7 @@ export function CreateInvoiceForm() {
                   <SelectContent>
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

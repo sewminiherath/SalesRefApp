@@ -313,6 +313,14 @@ module.exports = {
     const row = db.prepare("SELECT * FROM items WHERE id = ?").get(id);
     return row ? rowToItem(row) : null;
   },
+  decreaseItemQuantity: (id, quantityToDecrease) => {
+    const row = db.prepare("SELECT * FROM items WHERE id = ?").get(id);
+    if (!row) return null;
+    const nextQty = Math.max(0, Number(row.quantity || 0) - Number(quantityToDecrease || 0));
+    db.prepare("UPDATE items SET quantity = ? WHERE id = ?").run(nextQty, id);
+    const updated = db.prepare("SELECT * FROM items WHERE id = ?").get(id);
+    return updated ? rowToItem(updated) : null;
+  },
 
   getInvoices: () => {
     const rows = db.prepare("SELECT * FROM invoices ORDER BY id DESC").all();

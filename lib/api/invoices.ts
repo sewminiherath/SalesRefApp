@@ -10,9 +10,9 @@ export interface CreateInvoiceData {
   items: InvoiceItem[]
   discount?: number
   tax?: number
-  status?: "paid" | "pending" | "overdue"
+  status?: "paid" | "pending" | "overdue" | "credit"
   date?: string
-  payment_method?: "cash" | "cheque" | "card" | "transfer"
+  payment_method?: "cash" | "cheque" | "credit" | "card" | "transfer"
   cash_amount?: number
   cash_change?: number
   cheque_number?: string
@@ -32,8 +32,8 @@ export interface Invoice {
   discount: number
   tax: number
   total: number
-  status: "paid" | "pending" | "overdue"
-  payment_method?: "cash" | "cheque" | "card" | "transfer"
+  status: "paid" | "pending" | "overdue" | "credit"
+  payment_method?: "cash" | "cheque" | "credit" | "card" | "transfer"
   cash_amount?: number
   cash_change?: number
   cheque_number?: string

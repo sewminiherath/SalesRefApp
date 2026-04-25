@@ -70,6 +70,10 @@ export function InvoiceList() {
         return (
           <Badge className={`${base} bg-emerald-600 hover:bg-emerald-600`}>Paid</Badge>
         )
+      case "credit":
+        return (
+          <Badge className={`${base} bg-blue-600 hover:bg-blue-600`}>Credit</Badge>
+        )
       case "pending":
         return (
           <Badge className={`${base} bg-amber-500 hover:bg-amber-500`}>Pending</Badge>
