@@ -22,6 +22,8 @@ export function InvoiceList() {
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null)
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null)
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null)
+  const [addingPaymentId, setAddingPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
     loadInvoices()
@@ -83,6 +85,70 @@ export function InvoiceList() {
       )
     } finally {
       setDeletingInvoiceId(null)
+    }
+  }
+
+  const handleMarkAsPaid = async (invoice: Invoice) => {
+    const confirmed = window.confirm(
+      `Mark invoice ${invoice.invoice_number} as paid?`
+    )
+    if (!confirmed) return
+
+    try {
+      setMarkingPaidId(invoice.id)
+      const updated = await invoicesApi.markPaid(invoice.id)
+      setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
+      if (viewingInvoice?.id === updated.id) {
+        setViewingInvoice(updated)
+      }
+      toast.success(`Invoice ${invoice.invoice_number} marked as paid`)
+    } catch (error: any) {
+      toast.error(
+        `Failed to update ${invoice.invoice_number}: ` + (error.message || "Unknown error")
+      )
+    } finally {
+      setMarkingPaidId(null)
+    }
+  }
+
+  const handleAddPayment = async (invoice: Invoice) => {
+    const remaining = Math.max(0, Number(invoice.total || 0) - Number(invoice.paid_amount || 0))
+    if (remaining <= 0) {
+      toast.message(`Invoice ${invoice.invoice_number} is already fully paid`)
+      return
+    }
+    const input = window.prompt(
+      `Enter payment amount for ${invoice.invoice_number}\nRemaining: Rs. ${remaining.toFixed(2)}`,
+      remaining.toFixed(2)
+    )
+    if (!input) return
+    const amount = Number(input)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Payment amount must be greater than 0")
+      return
+    }
+
+    try {
+      setAddingPaymentId(invoice.id)
+      const updated = await invoicesApi.addPayment(invoice.id, amount)
+      setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
+      if (viewingInvoice?.id === updated.id) {
+        setViewingInvoice(updated)
+      }
+      const newRemaining = Math.max(0, Number(updated.total || 0) - Number(updated.paid_amount || 0))
+      if (newRemaining <= 0) {
+        toast.success(`Invoice ${invoice.invoice_number} settled and marked paid`)
+      } else {
+        toast.success(
+          `Payment added. Remaining balance for ${invoice.invoice_number}: Rs. ${newRemaining.toFixed(2)}`
+        )
+      }
+    } catch (error: any) {
+      toast.error(
+        `Failed to add payment for ${invoice.invoice_number}: ` + (error.message || "Unknown error")
+      )
+    } finally {
+      setAddingPaymentId(null)
     }
   }
 
@@ -161,8 +227,48 @@ export function InvoiceList() {
                     <p className="text-sm text-zinc-600">
                       {new Date(invoice.date).toLocaleDateString()} • Rs. {toMoney(invoice.total)}
                     </p>
+                    {invoice.status === "credit" && (
+                      <p className="text-xs text-blue-700">
+                        Paid: Rs. {toMoney(invoice.paid_amount || 0)} • Remaining: Rs.{" "}
+                        {toMoney(Number(invoice.total || 0) - Number(invoice.paid_amount || 0))}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {invoice.status === "credit" && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleAddPayment(invoice)}
+                        disabled={addingPaymentId === invoice.id}
+                        className="h-12 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      >
+                        {addingPaymentId === invoice.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Applying...
+                          </>
+                        ) : (
+                          "Add Payment"
+                        )}
+                      </Button>
+                    )}
+                    {invoice.status === "credit" && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleMarkAsPaid(invoice)}
+                        disabled={markingPaidId === invoice.id}
+                        className="h-12 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      >
+                        {markingPaidId === invoice.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          "Mark Paid"
+                        )}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       onClick={() => handleSendSavedInvoice(invoice)}

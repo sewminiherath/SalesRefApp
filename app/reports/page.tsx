@@ -24,6 +24,7 @@ export default function ReportsPage() {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedClientId, setSelectedClientId] = useState<string>("all")
+  const [selectedProductId, setSelectedProductId] = useState<string>("all")
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
     end: new Date().toISOString().split("T")[0],
@@ -90,12 +91,14 @@ export default function ReportsPage() {
     const totalInvoices = filteredInvoices.length
     const paidInvoices = filteredInvoices.filter((inv) => inv.status === "paid").length
     const pendingInvoices = filteredInvoices.filter((inv) => inv.status === "pending").length
+    const creditInvoices = filteredInvoices.filter((inv) => inv.status === "credit").length
 
     return {
       totalRevenue,
       totalInvoices,
       paidInvoices,
       pendingInvoices,
+      creditInvoices,
     }
   }
 
@@ -189,6 +192,10 @@ export default function ReportsPage() {
 
   const stats = calculateStats()
   const productSummary = getProductSummary()
+  const visibleProductSummary =
+    selectedProductId === "all"
+      ? productSummary
+      : productSummary.filter((row) => row.id === selectedProductId)
   const customerSummary = getCustomerSummary()
 
   return (
@@ -290,6 +297,9 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Credit invoices: {stats.creditInvoices}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -341,8 +351,24 @@ export default function ReportsPage() {
               Item code, name, price, sold quantity, and remaining quantity
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {productSummary.length === 0 ? (
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Product</Label>
+              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choose product" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Products</SelectItem>
+                  {productSummary.map((row) => (
+                    <SelectItem key={row.id} value={row.id}>
+                      {row.item_name} ({row.item_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {visibleProductSummary.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No product data found</p>
             ) : (
               <div className="space-y-2">
@@ -354,7 +380,7 @@ export default function ReportsPage() {
                   <p className="text-right">Remain Qty</p>
                 </div>
                 <div className="max-h-96 space-y-2 overflow-y-auto">
-                  {productSummary.map((row) => (
+                  {visibleProductSummary.map((row) => (
                     <div key={row.id} className="grid grid-cols-5 gap-2 rounded-lg border p-2 text-sm">
                       <p>{row.item_code}</p>
                       <p>{row.item_name}</p>

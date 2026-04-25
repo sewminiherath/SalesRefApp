@@ -89,6 +89,13 @@ db.exec(`
   );
 `);
 
+// Lightweight migration for partial payment tracking on existing databases.
+const invoiceColumns = db.prepare("PRAGMA table_info(invoices)").all();
+const hasPaidAmount = invoiceColumns.some((c) => c.name === "paid_amount");
+if (!hasPaidAmount) {
+  db.exec("ALTER TABLE invoices ADD COLUMN paid_amount REAL DEFAULT 0");
+}
+
 // Seed default data if empty
 const userCount = db.prepare("SELECT COUNT(*) as n FROM users").get();
 if (userCount.n === 0) {
@@ -187,6 +194,7 @@ function rowToInvoice(row) {
     cheque_bank: row.cheque_bank || "",
     cheque_date: row.cheque_date || "",
     cheque_amount: row.cheque_amount,
+    paid_amount: row.paid_amount || 0,
   };
 }
 
@@ -338,13 +346,34 @@ module.exports = {
     const result = db.prepare("DELETE FROM invoices WHERE id = ?").run(id);
     return result.changes > 0;
   },
+  updateInvoiceStatus: (id, status) => {
+    db.prepare("UPDATE invoices SET status = ? WHERE id = ?").run(status, id);
+    const row = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
+    return row ? rowToInvoice(row) : null;
+  },
+  addInvoicePayment: (id, amount) => {
+    const row = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
+    if (!row) return null;
+    const currentPaid = Number(row.paid_amount || 0);
+    const nextPaid = Math.max(0, currentPaid + Number(amount || 0));
+    const total = Number(row.total || 0);
+    const nextStatus = nextPaid >= total ? "paid" : "credit";
+
+    db.prepare("UPDATE invoices SET paid_amount = ?, status = ? WHERE id = ?").run(
+      nextPaid,
+      nextStatus,
+      id
+    );
+    const updated = db.prepare("SELECT * FROM invoices WHERE id = ?").get(id);
+    return updated ? rowToInvoice(updated) : null;
+  },
   getInvoiceCount: () => db.prepare("SELECT COUNT(*) as n FROM invoices").get().n,
   insertInvoice: (invoice) => {
     db.prepare(
       `INSERT INTO invoices (
         invoice_number, date, client_id, client_name, items, subtotal, discount, tax, total, status,
-        payment_method, cash_amount, cash_change, cheque_number, cheque_bank, cheque_date, cheque_amount
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        payment_method, cash_amount, cash_change, cheque_number, cheque_bank, cheque_date, cheque_amount, paid_amount
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       invoice.invoice_number,
       invoice.date,
@@ -362,7 +391,8 @@ module.exports = {
       invoice.cheque_number || "",
       invoice.cheque_bank || "",
       invoice.cheque_date || "",
-      invoice.cheque_amount
+      invoice.cheque_amount,
+      invoice.paid_amount || 0
     );
     const id = db.prepare("SELECT last_insert_rowid() as id").get().id;
     return { ...invoice, id: String(id) };

@@ -40,6 +40,7 @@ export interface Invoice {
   cheque_bank?: string
   cheque_date?: string
   cheque_amount?: number
+  paid_amount?: number
 }
 
 export const invoicesApi = {
@@ -70,6 +71,19 @@ export const invoicesApi = {
   remove: async (id: string): Promise<void> => {
     await apiRequest<{ success: boolean }>(`/invoices/${id}`, {
       method: "DELETE",
+    })
+  },
+
+  markPaid: async (id: string): Promise<Invoice> => {
+    return apiRequest<Invoice>(`/invoices/${id}/mark-paid`, {
+      method: "PATCH",
+    })
+  },
+
+  addPayment: async (id: string, amount: number): Promise<Invoice> => {
+    return apiRequest<Invoice>(`/invoices/${id}/add-payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ amount }),
     })
   },
 }

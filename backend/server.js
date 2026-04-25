@@ -505,6 +505,49 @@ app.delete("/api/invoices/:id", authMiddleware, (req, res) => {
   }
 });
 
+app.patch("/api/invoices/:id/mark-paid", authMiddleware, (req, res) => {
+  try {
+    const invoice = db.getInvoiceById(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    const remaining = Math.max(0, Number(invoice.total || 0) - Number(invoice.paid_amount || 0));
+    const updated = db.addInvoicePayment(req.params.id, remaining);
+    if (!updated) {
+      return res.status(500).json({ error: "Failed to update invoice status" });
+    }
+    return res.json(updated);
+  } catch (err) {
+    console.error("Error marking invoice as paid:", err);
+    return res.status(500).json({ error: err.message || "Failed to mark invoice as paid" });
+  }
+});
+
+app.patch("/api/invoices/:id/add-payment", authMiddleware, (req, res) => {
+  try {
+    const invoice = db.getInvoiceById(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found" });
+    }
+    const amount = Number(req.body?.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: "Payment amount must be greater than 0" });
+    }
+    const remaining = Math.max(0, Number(invoice.total || 0) - Number(invoice.paid_amount || 0));
+    if (amount > remaining) {
+      return res.status(400).json({ error: `Amount exceeds remaining balance (Rs. ${remaining.toFixed(2)})` });
+    }
+    const updated = db.addInvoicePayment(req.params.id, amount);
+    if (!updated) {
+      return res.status(500).json({ error: "Failed to apply payment" });
+    }
+    return res.json(updated);
+  } catch (err) {
+    console.error("Error applying invoice payment:", err);
+    return res.status(500).json({ error: err.message || "Failed to apply payment" });
+  }
+});
+
 app.post("/api/invoices", authMiddleware, (req, res) => {
   const data = req.body || {};
   const nextId = db.getInvoiceCount() + 1;
@@ -576,6 +619,12 @@ app.post("/api/invoices", authMiddleware, (req, res) => {
     cheque_bank: data.cheque_bank || "",
     cheque_date: data.cheque_date || "",
     cheque_amount: data.cheque_amount || null,
+    paid_amount:
+      data.status === "paid"
+        ? total
+        : data.payment_method === "cash"
+          ? Number(data.cash_amount) || 0
+          : 0,
   };
 
   const inserted = db.insertInvoice(invoice);
@@ -667,6 +716,7 @@ app.post("/api/quotations/:id/convert", authMiddleware, (req, res) => {
     tax: quotation.tax,
     total: quotation.total,
     status: "pending",
+    paid_amount: 0,
   };
 
   const inserted = db.insertInvoice(invoice);
