@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Eye, Loader2 } from "lucide-react"
+import { Search, Eye, Loader2, Mail } from "lucide-react"
 import { invoicesApi, type Invoice } from "@/lib/api/invoices"
 import { toast } from "sonner"
 import { InvoiceViewDialog } from "@/components/invoice-view-dialog"
@@ -20,6 +20,7 @@ export function InvoiceList() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null)
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null)
 
   useEffect(() => {
     loadInvoices()
@@ -46,6 +47,20 @@ export function InvoiceList() {
     }
     return true
   })
+
+  const handleSendSavedInvoice = async (invoice: Invoice) => {
+    try {
+      setSendingInvoiceId(invoice.id)
+      const result = await invoicesApi.sendEmail(invoice.id)
+      toast.success(`Invoice ${invoice.invoice_number} emailed to ${result.sent_to}`)
+    } catch (error: any) {
+      toast.error(
+        `Failed to send ${invoice.invoice_number}: ` + (error.message || "Unknown error")
+      )
+    } finally {
+      setSendingInvoiceId(null)
+    }
+  }
 
   const getStatusBadge = (status: Invoice["status"]) => {
     const base =
@@ -119,14 +134,34 @@ export function InvoiceList() {
                       {new Date(invoice.date).toLocaleDateString()} • Rs. {toMoney(invoice.total)}
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setViewingInvoice(invoice)}
-                    className="h-12 w-12 shrink-0 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                  >
-                    <Eye className="h-5 w-5" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSendSavedInvoice(invoice)}
+                      disabled={sendingInvoiceId === invoice.id}
+                      className="h-12 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    >
+                      {sendingInvoiceId === invoice.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setViewingInvoice(invoice)}
+                      className="h-12 w-12 border-gray-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
