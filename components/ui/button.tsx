@@ -4,15 +4,15 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-zinc-400 focus-visible:ring-zinc-400 focus-visible:ring-[3px]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700 focus-visible:ring-[3px]",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:brightness-[0.95]',
-        destructive: 'bg-destructive text-white hover:brightness-[0.95]',
-        outline: 'border border-zinc-200 bg-white text-zinc-900 shadow-xs hover:bg-zinc-100',
-        secondary: 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200',
-        ghost: 'hover:bg-zinc-100 text-zinc-900',
+        default: 'bg-emerald-700 text-white hover:bg-emerald-800',
+        destructive: 'bg-red-700 text-white hover:bg-red-800',
+        outline: 'border border-emerald-200 bg-white text-emerald-900 shadow-xs hover:bg-emerald-50',
+        secondary: 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200',
+        ghost: 'hover:bg-emerald-50 text-emerald-900',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
